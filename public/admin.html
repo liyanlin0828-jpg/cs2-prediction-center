@@ -33,9 +33,9 @@
   <section class="section admin-panel">
     <div class="section-head">
       <div><h2>同步真实 CS2 赛事</h2><p>PandaScore Token 只保存在服务器环境变量中。</p></div>
-      <button class="btn btn-primary" id="syncBtn">同步未来赛事</button>
+      <div class="sync-actions"><button class="btn btn-primary" id="syncBtn">同步未来赛事</button><button class="btn btn-secondary" id="syncResultsBtn">同步赛果并结算</button><button class="btn btn-secondary" id="syncAllBtn">全部同步</button></div>
     </div>
-    <div id="syncResult" class="admin-note">未执行同步。</div>
+    <div id="syncResult" class="admin-note">未执行同步。</div><div class="sync-status"><div class="sync-chip">PandaScore<strong id="pandaConfigured">-</strong></div><div class="sync-chip">已同步赛事<strong id="pandaMatches">0</strong></div><div class="sync-chip">自动同步<strong id="autoSync">-</strong></div></div>
   </section>
 
   <section class="section admin-panel">

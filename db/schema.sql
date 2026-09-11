@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS matches (
   winner VARCHAR(80),
   source VARCHAR(20) NOT NULL DEFAULT 'manual',
   external_id VARCHAR(80),
+  team_a_logo TEXT,
+  team_b_logo TEXT,
+  source_status VARCHAR(30),
+  match_type VARCHAR(30),
+  synced_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -1,0 +1,6 @@
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS team_a_logo TEXT;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS team_b_logo TEXT;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS source_status VARCHAR(30);
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS match_type VARCHAR(30);
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_matches_status_starts ON matches(status, starts_at);

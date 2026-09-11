@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
   const res=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`,...(options.headers||{})}});
   const data=await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(data.message||'请求失败');
+  if(!res.ok)throw new Error(data.message||'请求失败');
   return data;
 };
 function toast(msg){const e=$('toast');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
@@ -13,20 +13,20 @@ async function boot(){
   try{
     const me=(await api('/auth/me')).user;
     if(me.role!=='admin'){location.href='/';return}
-    $('adminName').textContent=me.username;
-    await refreshAll();
-  }catch(e){localStorage.removeItem('cs2_token');location.href='/'}
+    $('adminName').textContent=me.username;await refreshAll();
+  }catch{localStorage.removeItem('cs2_token');location.href='/'}
 }
 async function refreshAll(){
   const [stats,matches,users,health]=await Promise.all([
     api('/admin/stats'),api('/admin/matches'),api('/admin/users'),
     fetch('/api/health').then(r=>r.json()).catch(()=>({ok:false}))
   ]);
-  $('usersCount').textContent=stats.users;
-  $('matchesCount').textContent=stats.matches;
-  $('openCount').textContent=stats.open_matches;
-  $('predictionsCount').textContent=stats.predictions;
+  $('usersCount').textContent=stats.users;$('matchesCount').textContent=stats.matches;
+  $('openCount').textContent=stats.open_matches;$('predictionsCount').textContent=stats.predictions;
   $('apiStatus').textContent=health.ok?'系统正常':'系统异常';
+  $('pandaConfigured').textContent=stats.pandascore_configured?'已连接':'未配置';
+  $('pandaMatches').textContent=stats.pandascore_matches||0;
+  $('autoSync').textContent=stats.pandascore_configured?`${stats.auto_sync_minutes} 分钟`:'关闭';
   renderMatches(matches.matches);renderUsers(users.users);
 }
 function renderMatches(rows){
@@ -36,19 +36,16 @@ function renderMatches(rows){
     <td>${new Date(m.starts_at).toLocaleString('zh-CN')}</td>
     <td>${esc(m.status)}${m.winner?` · ${esc(m.winner)}`:''}</td>
     <td><span class="source-badge">${esc(m.source||'manual')}</span></td>
-    <td><div class="action-row">
-      ${m.status==='settled'?'已结算':`
-        <button class="mini-btn win" onclick="settle(${m.id},'${String(m.team_a).replace(/'/g,"\\'")}')">${esc(m.team_a)} 胜</button>
-        <button class="mini-btn win" onclick="settle(${m.id},'${String(m.team_b).replace(/'/g,"\\'")}')">${esc(m.team_b)} 胜</button>`}
+    <td><div class="action-row">${m.status==='settled'?'已结算':`
+      <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">${esc(m.team_a)} 胜</button>
+      <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">${esc(m.team_b)} 胜</button>`}
     </div></td></tr>`).join('');
 }
-function renderUsers(rows){
-  $('usersBody').innerHTML=rows.map(u=>`<tr>
-    <td>${u.id}</td><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${u.points}</td>
-    <td>${u.predictions}</td><td>${new Date(u.created_at).toLocaleString('zh-CN')}</td></tr>`).join('');
-}
+function renderUsers(rows){$('usersBody').innerHTML=rows.map(u=>`<tr>
+  <td>${u.id}</td><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${u.points}</td>
+  <td>${u.predictions}</td><td>${new Date(u.created_at).toLocaleString('zh-CN')}</td></tr>`).join('')}
 window.settle=async(id,winner)=>{
-  if(!confirm(`确认 ${winner} 获胜并结算积分？`)) return;
+  if(!confirm(`确认 ${winner} 获胜并结算积分？`))return;
   try{await api(`/admin/matches/${id}/result`,{method:'POST',body:JSON.stringify({winner})});toast('结算完成');await refreshAll()}
   catch(e){toast(e.message)}
 };
@@ -57,21 +54,22 @@ $('matchForm').onsubmit=async e=>{
   try{
     await api('/admin/matches',{method:'POST',body:JSON.stringify({
       eventName:$('eventName').value.trim(),teamA:$('teamA').value.trim(),teamB:$('teamB').value.trim(),
-      oddsA:Number($('oddsA').value),oddsB:Number($('oddsB').value),
-      startsAt:new Date($('startsAt').value).toISOString()
+      oddsA:Number($('oddsA').value),oddsB:Number($('oddsB').value),startsAt:new Date($('startsAt').value).toISOString()
     })});
     e.target.reset();$('oddsA').value='1.80';$('oddsB').value='1.80';toast('比赛已创建');await refreshAll();
   }catch(e){toast(e.message)}
 };
-$('syncBtn').onclick=async()=>{
-  $('syncBtn').disabled=true;$('syncResult').textContent='正在同步…';
+async function doSync(path,label){
+  $('syncResult').textContent=`${label}中…`;
   try{
-    const r=await api('/admin/sync/pandascore',{method:'POST'});
-    $('syncResult').textContent=`同步完成：读取 ${r.fetched} 场，新增 ${r.inserted} 场，更新 ${r.updated} 场，跳过 ${r.skipped} 场。`;
-    toast('PandaScore 同步完成');await refreshAll();
+    const r=await api(path,{method:'POST'});
+    $('syncResult').textContent=`${label}完成：${JSON.stringify(r)}`;
+    toast(`${label}完成`);await refreshAll();
   }catch(e){$('syncResult').textContent=e.message;toast(e.message)}
-  finally{$('syncBtn').disabled=false}
-};
+}
+$('syncBtn').onclick=()=>doSync('/admin/sync/pandascore','未来赛事同步');
+$('syncResultsBtn').onclick=()=>doSync('/admin/sync/results','赛果同步与结算');
+$('syncAllBtn').onclick=()=>doSync('/admin/sync/all','全部同步');
 $('refreshBtn').onclick=refreshAll;
 $('logoutBtn').onclick=()=>{localStorage.removeItem('cs2_token');location.href='/'};
 boot();

@@ -3,18 +3,42 @@ const fs=require('fs');
 const path=require('path');
 const bcrypt=require('bcryptjs');
 const {Pool}=require('pg');
-const pool=new Pool({connectionString:process.env.DATABASE_URL});
+
+const pool=new Pool({
+  connectionString:process.env.DATABASE_URL,
+  ssl:process.env.NODE_ENV==='production'?{rejectUnauthorized:false}:false
+});
+
+async function runSql(client,file){
+  const p=path.join(__dirname,'..','db',file);
+  if(fs.existsSync(p)) await client.query(fs.readFileSync(p,'utf8'));
+}
+
 (async()=>{
   const client=await pool.connect();
   try{
-    await client.query(fs.readFileSync(path.join(__dirname,'..','db','schema.sql'),'utf8'));
-    await client.query(fs.readFileSync(path.join(__dirname,'..','db','seed.sql'),'utf8'));
-    const adminPassword = process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? null : 'Admin123!');
+    await runSql(client,'schema.sql');
+    await runSql(client,'migration_v2.sql');
+    await runSql(client,'migration_v3.sql');
+    await runSql(client,'seed.sql');
+
+    const adminPassword=process.env.ADMIN_PASSWORD || (process.env.NODE_ENV==='production'?null:'Admin123!');
     if(!adminPassword) throw new Error('ADMIN_PASSWORD must be set in production');
+
     const hash=await bcrypt.hash(adminPassword,12);
-    await client.query(`INSERT INTO users(username,password_hash,role,points) VALUES('admin',$1,'admin',1000)
-      ON CONFLICT(username) DO NOTHING`,[hash]);
+    await client.query(`
+      INSERT INTO users(username,password_hash,role,points)
+      VALUES('admin',$1,'admin',1000)
+      ON CONFLICT(username)
+      DO UPDATE SET password_hash=EXCLUDED.password_hash, role='admin'
+    `,[hash]);
+
     console.log('Database initialized. Admin username: admin');
-    console.log('For PandaScore sync, set PANDASCORE_TOKEN in .env');
-  } finally {client.release(); await pool.end();}
-})().catch(e=>{console.error(e);process.exit(1);});
+    console.log(process.env.PANDASCORE_TOKEN
+      ? 'PandaScore integration enabled'
+      : 'PandaScore token not configured');
+  } finally {
+    client.release();
+    await pool.end();
+  }
+})().catch(e=>{console.error(e);process.exit(1)});

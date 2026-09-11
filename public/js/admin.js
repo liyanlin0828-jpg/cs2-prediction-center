@@ -1,0 +1,77 @@
+const token=localStorage.getItem('cs2_token');
+const $=id=>document.getElementById(id);
+const api=async(path,options={})=>{
+  const res=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`,...(options.headers||{})}});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.message||'请求失败');
+  return data;
+};
+function toast(msg){const e=$('toast');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+async function boot(){
+  if(!token){location.href='/';return}
+  try{
+    const me=(await api('/auth/me')).user;
+    if(me.role!=='admin'){location.href='/';return}
+    $('adminName').textContent=me.username;
+    await refreshAll();
+  }catch(e){localStorage.removeItem('cs2_token');location.href='/'}
+}
+async function refreshAll(){
+  const [stats,matches,users,health]=await Promise.all([
+    api('/admin/stats'),api('/admin/matches'),api('/admin/users'),
+    fetch('/api/health').then(r=>r.json()).catch(()=>({ok:false}))
+  ]);
+  $('usersCount').textContent=stats.users;
+  $('matchesCount').textContent=stats.matches;
+  $('openCount').textContent=stats.open_matches;
+  $('predictionsCount').textContent=stats.predictions;
+  $('apiStatus').textContent=health.ok?'系统正常':'系统异常';
+  renderMatches(matches.matches);renderUsers(users.users);
+}
+function renderMatches(rows){
+  $('matchesBody').innerHTML=rows.map(m=>`<tr>
+    <td>${m.id}</td><td>${esc(m.event_name)}</td>
+    <td><strong>${esc(m.team_a)}</strong> vs <strong>${esc(m.team_b)}</strong></td>
+    <td>${new Date(m.starts_at).toLocaleString('zh-CN')}</td>
+    <td>${esc(m.status)}${m.winner?` · ${esc(m.winner)}`:''}</td>
+    <td><span class="source-badge">${esc(m.source||'manual')}</span></td>
+    <td><div class="action-row">
+      ${m.status==='settled'?'已结算':`
+        <button class="mini-btn win" onclick="settle(${m.id},'${String(m.team_a).replace(/'/g,"\\'")}')">${esc(m.team_a)} 胜</button>
+        <button class="mini-btn win" onclick="settle(${m.id},'${String(m.team_b).replace(/'/g,"\\'")}')">${esc(m.team_b)} 胜</button>`}
+    </div></td></tr>`).join('');
+}
+function renderUsers(rows){
+  $('usersBody').innerHTML=rows.map(u=>`<tr>
+    <td>${u.id}</td><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${u.points}</td>
+    <td>${u.predictions}</td><td>${new Date(u.created_at).toLocaleString('zh-CN')}</td></tr>`).join('');
+}
+window.settle=async(id,winner)=>{
+  if(!confirm(`确认 ${winner} 获胜并结算积分？`)) return;
+  try{await api(`/admin/matches/${id}/result`,{method:'POST',body:JSON.stringify({winner})});toast('结算完成');await refreshAll()}
+  catch(e){toast(e.message)}
+};
+$('matchForm').onsubmit=async e=>{
+  e.preventDefault();
+  try{
+    await api('/admin/matches',{method:'POST',body:JSON.stringify({
+      eventName:$('eventName').value.trim(),teamA:$('teamA').value.trim(),teamB:$('teamB').value.trim(),
+      oddsA:Number($('oddsA').value),oddsB:Number($('oddsB').value),
+      startsAt:new Date($('startsAt').value).toISOString()
+    })});
+    e.target.reset();$('oddsA').value='1.80';$('oddsB').value='1.80';toast('比赛已创建');await refreshAll();
+  }catch(e){toast(e.message)}
+};
+$('syncBtn').onclick=async()=>{
+  $('syncBtn').disabled=true;$('syncResult').textContent='正在同步…';
+  try{
+    const r=await api('/admin/sync/pandascore',{method:'POST'});
+    $('syncResult').textContent=`同步完成：读取 ${r.fetched} 场，新增 ${r.inserted} 场，更新 ${r.updated} 场，跳过 ${r.skipped} 场。`;
+    toast('PandaScore 同步完成');await refreshAll();
+  }catch(e){$('syncResult').textContent=e.message;toast(e.message)}
+  finally{$('syncBtn').disabled=false}
+};
+$('refreshBtn').onclick=refreshAll;
+$('logoutBtn').onclick=()=>{localStorage.removeItem('cs2_token');location.href='/'};
+boot();

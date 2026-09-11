@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS2 预测中心 · 管理后台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">CS</span><span>管理后台</span></div>
+  <nav><a href="/">返回前台</a><button id="logoutBtn" class="btn btn-secondary">退出</button></nav>
+</header>
+
+<main class="container admin-shell">
+  <section class="admin-hero">
+    <div><span class="eyebrow">ADMIN CONSOLE</span><h1>赛事与用户管理</h1>
+    <p>添加赛事、同步 PandaScore、录入结果并自动结算积分。</p></div>
+    <div class="admin-status"><span id="adminName">-</span><strong id="apiStatus">API 未检测</strong></div>
+  </section>
+
+  <section class="admin-grid stats-grid">
+    <article class="stat-card"><span>用户</span><strong id="usersCount">0</strong></article>
+    <article class="stat-card"><span>比赛</span><strong id="matchesCount">0</strong></article>
+    <article class="stat-card"><span>待结算</span><strong id="openCount">0</strong></article>
+    <article class="stat-card"><span>预测</span><strong id="predictionsCount">0</strong></article>
+  </section>
+
+  <section class="section admin-panel">
+    <div class="section-head">
+      <div><h2>同步真实 CS2 赛事</h2><p>PandaScore Token 只保存在服务器环境变量中。</p></div>
+      <button class="btn btn-primary" id="syncBtn">同步未来赛事</button>
+    </div>
+    <div id="syncResult" class="admin-note">未执行同步。</div>
+  </section>
+
+  <section class="section admin-panel">
+    <div class="section-head"><div><h2>添加比赛</h2><p>也可以手动创建赛事。</p></div></div>
+    <form id="matchForm" class="admin-form">
+      <label>赛事名称<input id="eventName" required placeholder="例如 IEM Cologne"></label>
+      <label>队伍 A<input id="teamA" required></label>
+      <label>队伍 B<input id="teamB" required></label>
+      <label>队伍 A 系数<input id="oddsA" type="number" min="1" step="0.01" value="1.80" required></label>
+      <label>队伍 B 系数<input id="oddsB" type="number" min="1" step="0.01" value="1.80" required></label>
+      <label>开始时间<input id="startsAt" type="datetime-local" required></label>
+      <button class="btn btn-primary" type="submit">创建比赛</button>
+    </form>
+  </section>
+
+  <section class="section admin-panel">
+    <div class="section-head">
+      <div><h2>比赛管理</h2><p>录入获胜队伍后系统自动结算用户积分。</p></div>
+      <button class="btn btn-secondary" id="refreshBtn">刷新</button>
+    </div>
+    <div class="table-wrap">
+      <table class="admin-table"><thead><tr>
+        <th>ID</th><th>赛事</th><th>对阵</th><th>开始时间</th><th>状态</th><th>来源</th><th>操作</th>
+      </tr></thead><tbody id="matchesBody"></tbody></table>
+    </div>
+  </section>
+
+  <section class="section admin-panel">
+    <div class="section-head"><div><h2>用户管理</h2><p>查看账户、角色、积分和预测次数。</p></div></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>积分</th><th>预测数</th><th>注册时间</th></tr></thead>
+      <tbody id="usersBody"></tbody></table>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast"></div>
+<script src="js/admin.js"></script>
+</body>
+</html>

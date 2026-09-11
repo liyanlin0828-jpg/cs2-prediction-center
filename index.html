@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS2 赛事预测中心</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">CS</span><span>CS2 预测中心</span></div>
+  <nav>
+    <a href="#matches">赛事</a>
+    <a href="#leaderboard">排行榜</a>
+    <a href="#profile">个人中心</a><a id="adminLink" class="hidden" href="/admin.html">管理后台</a>
+    <button id="loginBtn" class="btn btn-primary">登录 / 注册</button>
+    <button id="logoutBtn" class="btn btn-secondary hidden">退出</button>
+  </nav>
+</header>
+
+<main class="container">
+  <section class="hero">
+    <div>
+      <span class="eyebrow">ONLINE PREDICTION PLATFORM</span>
+      <h1>预测比赛，赢取积分</h1>
+      <p>真实账号、云端数据库、共享排行榜。当前版本为演示赛事数据，不涉及真钱投注。</p>
+    </div>
+    <div class="hero-stat"><strong id="heroPoints">0</strong><span>我的积分</span></div>
+  </section>
+
+  <section id="matches" class="section">
+    <div class="section-head"><div><h2>🔥 热门比赛</h2><p>选择你认为会获胜的战队</p></div></div>
+    <div id="matchesGrid" class="match-grid"></div>
+  </section>
+
+  <section id="leaderboard" class="section">
+    <div class="section-head"><div><h2>🏆 排行榜</h2><p>所有注册用户共享实时排名</p></div></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>#</th><th>用户</th><th>积分</th><th>胜率</th><th>预测次数</th></tr></thead>
+      <tbody id="leaderboardBody"></tbody></table>
+    </div>
+  </section>
+
+  <section id="profile" class="section">
+    <div class="section-head"><div><h2>👤 个人中心</h2><p id="profileHint">登录后查看预测记录</p></div></div>
+    <div id="profileCard" class="profile-card"></div>
+  </section>
+</main>
+
+<div id="authModal" class="modal hidden">
+  <div class="modal-card">
+    <button class="modal-close" id="closeModal">×</button>
+    <h2 id="authTitle">登录</h2>
+    <form id="authForm">
+      <label>用户名<input id="username" minlength="3" maxlength="24" required></label>
+      <label>密码<input id="password" type="password" minlength="6" required></label>
+      <button class="btn btn-primary full" type="submit" id="authSubmit">登录</button>
+    </form>
+    <button class="link-btn" id="toggleAuth">没有账号？注册</button>
+    <p class="muted">演示管理员：admin / Admin123!</p>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="js/app.js"></script>
+</body>
+</html>

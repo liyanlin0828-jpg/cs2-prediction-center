@@ -1,0 +1,19 @@
+{
+  "name": "cs2-prediction-center",
+  "version": "2.1.0",
+  "private": true,
+  "description": "CS2 online prediction platform V2 with admin console and PandaScore sync",
+  "main": "server.js",
+  "scripts": {
+    "start": "npm run db:init && node server.js",
+    "dev": "node --watch server.js",
+    "db:init": "node scripts/init-db.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3"
+  }
+}

@@ -17,6 +17,7 @@ const pool=new Pool({
 const PORT=process.env.PORT||3000;
 const JWT_SECRET=process.env.JWT_SECRET||'change-this-secret';
 const PANDA_TOKEN=process.env.PANDASCORE_TOKEN||'';
+const AUTO_SYNC_MINUTES=Math.max(5,Number(process.env.AUTO_SYNC_MINUTES||15));
 
 function sign(user){return jwt.sign({id:user.id,username:user.username,role:user.role},JWT_SECRET,{expiresIn:'7d'})}
 function auth(req,res,next){
@@ -29,9 +30,108 @@ function auth(req,res,next){
 function admin(req,res,next){if(req.user.role!=='admin')return res.status(403).json({message:'需要管理员权限'});next()}
 const validUsername=s=>/^[A-Za-z0-9_]{3,24}$/.test(s||'');
 
+async function panda(pathname){
+  if(!PANDA_TOKEN) throw Object.assign(new Error('尚未设置 PANDASCORE_TOKEN'),{status:400});
+  const url=`https://api.pandascore.co${pathname}`;
+  const r=await fetch(url,{headers:{Accept:'application/json',Authorization:`Bearer ${PANDA_TOKEN}`}});
+  if(!r.ok) throw Object.assign(new Error(`PandaScore 请求失败 (${r.status})`),{status:502});
+  return r.json();
+}
+function oppTeam(opp){return opp?.opponent||null}
+function leagueLabel(x){
+  const league=x.league?.name||'CS2';
+  const serie=x.serie?.full_name||x.serie?.name;
+  const tournament=x.tournament?.name;
+  return [league,serie,tournament].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ').slice(0,120);
+}
+function normalizedOpponents(x){
+  const a=oppTeam(x.opponents?.[0]),b=oppTeam(x.opponents?.[1]);
+  if(!a||!b) return null;
+  return {a,b};
+}
+
+async function syncUpcoming(){
+  const items=await panda('/csgo/matches/upcoming?per_page=100&sort=begin_at');
+  let inserted=0,updated=0,skipped=0;
+  for(const x of items){
+    const teams=normalizedOpponents(x);
+    if(!teams||!x.begin_at){skipped++;continue}
+    const r=await pool.query(`
+      INSERT INTO matches(
+        event_name,team_a,team_b,odds_a,odds_b,starts_at,status,source,external_id,
+        team_a_logo,team_b_logo,source_status,match_type,synced_at
+      )
+      VALUES($1,$2,$3,1.80,1.80,$4,'open','pandascore',$5,$6,$7,$8,$9,NOW())
+      ON CONFLICT(source,external_id) WHERE external_id IS NOT NULL
+      DO UPDATE SET
+        event_name=EXCLUDED.event_name,
+        team_a=EXCLUDED.team_a,
+        team_b=EXCLUDED.team_b,
+        starts_at=EXCLUDED.starts_at,
+        team_a_logo=EXCLUDED.team_a_logo,
+        team_b_logo=EXCLUDED.team_b_logo,
+        source_status=EXCLUDED.source_status,
+        match_type=EXCLUDED.match_type,
+        synced_at=NOW()
+      RETURNING (xmax=0) AS inserted
+    `,[
+      leagueLabel(x),teams.a.name,teams.b.name,x.begin_at,String(x.id),
+      teams.a.image_url||null,teams.b.image_url||null,x.status||'not_started',x.match_type||null
+    ]);
+    if(r.rows[0]?.inserted)inserted++;else updated++;
+  }
+  return {fetched:items.length,inserted,updated,skipped};
+}
+
+async function settleMatch(matchId,winner){
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const m=(await client.query('SELECT * FROM matches WHERE id=$1 FOR UPDATE',[matchId])).rows[0];
+    if(!m)throw Object.assign(new Error('比赛不存在'),{status:404});
+    if(m.status==='settled')return {settledPredictions:0,alreadySettled:true};
+    if(winner!==m.team_a&&winner!==m.team_b)throw Object.assign(new Error('获胜队伍无效'),{status:400});
+    const preds=(await client.query('SELECT * FROM predictions WHERE match_id=$1 AND result IS NULL FOR UPDATE',[m.id])).rows;
+    for(const p of preds){
+      const isWin=p.predicted_team===winner,delta=isWin?100:-50,result=isWin?'win':'loss';
+      await client.query('UPDATE predictions SET result=$1,points_delta=$2 WHERE id=$3',[result,delta,p.id]);
+      await client.query('UPDATE users SET points=GREATEST(0,points+$1) WHERE id=$2',[delta,p.user_id]);
+    }
+    await client.query("UPDATE matches SET winner=$1,status='settled',source_status='finished',synced_at=NOW() WHERE id=$2",[winner,m.id]);
+    await client.query('COMMIT');
+    return {settledPredictions:preds.length,alreadySettled:false};
+  }catch(e){await client.query('ROLLBACK');throw e}
+  finally{client.release()}
+}
+
+async function syncResults(){
+  const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
+  let checked=0,settled=0,skipped=0;
+  const local=(await pool.query(`
+    SELECT id,external_id,status FROM matches
+    WHERE source='pandascore' AND external_id IS NOT NULL AND status<>'settled'
+  `)).rows;
+  const map=new Map(local.map(m=>[String(m.external_id),m]));
+  for(const x of items){
+    const m=map.get(String(x.id));
+    if(!m)continue;
+    checked++;
+    if(!x.winner_id){skipped++;continue}
+    const teams=normalizedOpponents(x);
+    if(!teams){skipped++;continue}
+    const winnerTeam=[teams.a,teams.b].find(t=>String(t.id)===String(x.winner_id));
+    if(!winnerTeam){skipped++;continue}
+    const result=await settleMatch(m.id,winnerTeam.name);
+    if(!result.alreadySettled)settled++;
+  }
+  return {fetched:items.length,checked,settled,skipped};
+}
+
 app.get('/api/health',async(req,res)=>{
-  try{await pool.query('SELECT 1');res.json({ok:true,version:'2.0.0',pandascoreConfigured:!!PANDA_TOKEN})}
-  catch{res.status(503).json({ok:false})}
+  try{
+    await pool.query('SELECT 1');
+    res.json({ok:true,version:'3.0.0',pandascoreConfigured:!!PANDA_TOKEN,autoSyncMinutes:AUTO_SYNC_MINUTES});
+  }catch{res.status(503).json({ok:false})}
 });
 
 app.post('/api/auth/register',async(req,res)=>{
@@ -67,7 +167,8 @@ app.get('/api/matches',async(req,res)=>{
   if(h.startsWith('Bearer ')){try{userId=jwt.verify(h.slice(7),JWT_SECRET).id}catch{}}
   const r=await pool.query(`SELECT m.*,
     (SELECT p.predicted_team FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_prediction
-    FROM matches m WHERE m.status='open' AND m.starts_at>NOW() ORDER BY m.starts_at LIMIT 100`,[userId]);
+    FROM matches m WHERE m.status='open' AND m.starts_at>NOW()
+    ORDER BY m.starts_at LIMIT 100`,[userId]);
   res.json({matches:r.rows});
 });
 app.get('/api/leaderboard',async(req,res)=>{
@@ -77,7 +178,6 @@ app.get('/api/leaderboard',async(req,res)=>{
     GROUP BY u.id ORDER BY u.points DESC,u.created_at ASC LIMIT 100`);
   res.json({users:r.rows});
 });
-
 app.post('/api/predictions',auth,async(req,res)=>{
   const {matchId,team}=req.body||{};
   const client=await pool.connect();
@@ -107,8 +207,9 @@ app.get('/api/admin/stats',auth,admin,async(req,res)=>{
     (SELECT COUNT(*)::int FROM users) users,
     (SELECT COUNT(*)::int FROM matches) matches,
     (SELECT COUNT(*)::int FROM matches WHERE status='open') open_matches,
-    (SELECT COUNT(*)::int FROM predictions) predictions`);
-  res.json(r.rows[0]);
+    (SELECT COUNT(*)::int FROM predictions) predictions,
+    (SELECT COUNT(*)::int FROM matches WHERE source='pandascore') pandascore_matches`);
+  res.json({...r.rows[0],pandascore_configured:!!PANDA_TOKEN,auto_sync_minutes:AUTO_SYNC_MINUTES});
 });
 app.get('/api/admin/users',auth,admin,async(req,res)=>{
   const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.created_at,COUNT(p.id)::int predictions
@@ -126,57 +227,39 @@ app.post('/api/admin/matches',auth,admin,async(req,res)=>{
     VALUES($1,$2,$3,$4,$5,$6,'manual') RETURNING *`,[eventName,teamA,teamB,oddsA,oddsB,startsAt]);
   res.status(201).json({match:r.rows[0]});
 });
-
-async function settleMatch(matchId,winner){
-  const client=await pool.connect();
-  try{
-    await client.query('BEGIN');
-    const m=(await client.query('SELECT * FROM matches WHERE id=$1 FOR UPDATE',[matchId])).rows[0];
-    if(!m)throw Object.assign(new Error('比赛不存在'),{status:404});
-    if(m.status==='settled')throw Object.assign(new Error('比赛已经结算'),{status:409});
-    if(winner!==m.team_a&&winner!==m.team_b)throw Object.assign(new Error('获胜队伍无效'),{status:400});
-    const preds=(await client.query('SELECT * FROM predictions WHERE match_id=$1 AND result IS NULL FOR UPDATE',[m.id])).rows;
-    for(const p of preds){
-      const isWin=p.predicted_team===winner, delta=isWin?100:-50, result=isWin?'win':'loss';
-      await client.query('UPDATE predictions SET result=$1,points_delta=$2 WHERE id=$3',[result,delta,p.id]);
-      await client.query('UPDATE users SET points=GREATEST(0,points+$1) WHERE id=$2',[delta,p.user_id]);
-    }
-    await client.query("UPDATE matches SET winner=$1,status='settled' WHERE id=$2",[winner,m.id]);
-    await client.query('COMMIT');
-    return {settledPredictions:preds.length};
-  }catch(e){await client.query('ROLLBACK');throw e}
-  finally{client.release()}
-}
 app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
   try{const r=await settleMatch(req.params.id,(req.body||{}).winner);res.json({message:'比赛已结算',...r})}
   catch(e){res.status(e.status||500).json({message:e.status?e.message:'结算失败'})}
 });
-
-function teamName(opp){return opp?.opponent?.name||null}
 app.post('/api/admin/sync/pandascore',auth,admin,async(req,res)=>{
-  if(!PANDA_TOKEN)return res.status(400).json({message:'尚未设置 PANDASCORE_TOKEN'});
-  try{
-    const url='https://api.pandascore.co/csgo/matches/upcoming?per_page=50&sort=begin_at';
-    const pr=await fetch(url,{headers:{Accept:'application/json',Authorization:`Bearer ${PANDA_TOKEN}`}});
-    if(!pr.ok)return res.status(502).json({message:`PandaScore 请求失败 (${pr.status})`});
-    const items=await pr.json();
-    let inserted=0,updated=0,skipped=0;
-    for(const x of items){
-      const a=teamName(x.opponents?.[0]),b=teamName(x.opponents?.[1]);
-      if(!a||!b||!x.begin_at){skipped++;continue}
-      const event=x.league?.name||x.serie?.full_name||x.tournament?.name||'CS2';
-      const external=String(x.id);
-      const r=await pool.query(`INSERT INTO matches(event_name,team_a,team_b,odds_a,odds_b,starts_at,source,external_id)
-        VALUES($1,$2,$3,1.80,1.80,$4,'pandascore',$5)
-        ON CONFLICT(source,external_id) WHERE external_id IS NOT NULL
-        DO UPDATE SET event_name=EXCLUDED.event_name,team_a=EXCLUDED.team_a,team_b=EXCLUDED.team_b,starts_at=EXCLUDED.starts_at
-        RETURNING (xmax=0) AS inserted`,[event,a,b,x.begin_at,external]);
-      if(r.rows[0]?.inserted)inserted++;else updated++;
-    }
-    res.json({fetched:items.length,inserted,updated,skipped});
-  }catch(e){console.error(e);res.status(500).json({message:'同步 PandaScore 失败'})}
+  try{res.json(await syncUpcoming())}
+  catch(e){console.error(e);res.status(e.status||500).json({message:e.message||'同步 PandaScore 失败'})}
 });
+app.post('/api/admin/sync/results',auth,admin,async(req,res)=>{
+  try{res.json(await syncResults())}
+  catch(e){console.error(e);res.status(e.status||500).json({message:e.message||'同步比赛结果失败'})}
+});
+app.post('/api/admin/sync/all',auth,admin,async(req,res)=>{
+  try{
+    const upcoming=await syncUpcoming();
+    const results=await syncResults();
+    res.json({upcoming,results});
+  }catch(e){console.error(e);res.status(e.status||500).json({message:e.message||'同步失败'})}
+});
+
+/* Auto sync while the instance is awake. Render free instances may sleep when idle. */
+if(PANDA_TOKEN){
+  const run=async()=>{
+    try{
+      const u=await syncUpcoming();
+      const r=await syncResults();
+      console.log('[AutoSync]',{upcoming:u,results:r});
+    }catch(e){console.error('[AutoSync error]',e.message)}
+  };
+  setTimeout(run,15000);
+  setInterval(run,AUTO_SYNC_MINUTES*60*1000);
+}
 
 app.get('/admin',(req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 app.use((req,res)=>res.sendFile(path.join(__dirname,'index.html')));
-app.listen(PORT,()=>console.log(`CS2 Prediction Center V2 running on http://localhost:${PORT}`));
+app.listen(PORT,()=>console.log(`CS2 Prediction Center V3 running on http://localhost:${PORT}`));

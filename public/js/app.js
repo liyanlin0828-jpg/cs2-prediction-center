@@ -68,7 +68,7 @@ function renderMatches(){
           <strong>${escapeHtml(m.team_b)}</strong><span>${m.odds_b}</span>
         </button>
       </div>
-      <div class="match-footer"><span>预测奖励：+50</span><span>${m.user_prediction?'已预测':'尚未预测'}</span></div>
+      <div class="match-footer"><span>猜中奖励：+50：+50</span><span>${m.user_prediction?'已预测':'尚未预测'}</span></div>
     </article>`;
   }).join('');
 }

@@ -54,7 +54,7 @@ $('matchForm').onsubmit=async e=>{
   try{
     await api('/admin/matches',{method:'POST',body:JSON.stringify({
       eventName:$('eventName').value.trim(),teamA:$('teamA').value.trim(),teamB:$('teamB').value.trim(),
-      oddsA:Number($('oddsA').value),oddsB:Number($('oddsB').value),startsAt:new Date($('startsAt').value).toISOString()
+      oddsA:Number($('oddsA').value),oddsB:Number($('oddsB').value),numberOfGames:Number($('numberOfGames').value),startsAt:new Date($('startsAt').value).toISOString()
     })});
     e.target.reset();$('oddsA').value='1.80';$('oddsB').value='1.80';toast('比赛已创建');await refreshAll();
   }catch(e){toast(e.message)}

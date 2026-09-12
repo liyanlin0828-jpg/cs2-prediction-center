@@ -93,7 +93,7 @@ async function settleMatch(matchId,winner){
     if(winner!==m.team_a&&winner!==m.team_b)throw Object.assign(new Error('获胜队伍无效'),{status:400});
     const preds=(await client.query('SELECT * FROM predictions WHERE match_id=$1 AND result IS NULL FOR UPDATE',[m.id])).rows;
     for(const p of preds){
-      const isWin=p.predicted_team===winner,delta=isWin?100:-50,result=isWin?'win':'loss';
+const isWin=p.predicted_team===winner,delta=isWin?50:0,result=isWin?'win':'loss';
       await client.query('UPDATE predictions SET result=$1,points_delta=$2 WHERE id=$3',[result,delta,p.id]);
       await client.query('UPDATE users SET points=GREATEST(0,points+$1) WHERE id=$2',[delta,p.user_id]);
     }
@@ -188,9 +188,13 @@ app.post('/api/predictions',auth,async(req,res)=>{
     if(team!==m.team_a&&team!==m.team_b)throw Object.assign(new Error('无效的预测队伍'),{status:400});
     if((await client.query('SELECT 1 FROM predictions WHERE user_id=$1 AND match_id=$2',[req.user.id,matchId])).rowCount)
       throw Object.assign(new Error('这场比赛已经预测过了'),{status:409});
-    await client.query('INSERT INTO predictions(user_id,match_id,predicted_team) VALUES($1,$2,$3)',[req.user.id,matchId,team]);
-    const u=(await client.query('UPDATE users SET points=points+50 WHERE id=$1 RETURNING id,username,role,points',[req.user.id])).rows[0];
-    await client.query('COMMIT');res.status(201).json({user:u,message:`预测 ${team} 成功，+50 积分`});
+await client.query('INSERT INTO predictions(user_id,match_id,predicted_team) VALUES($1,$2,$3)',[req.user.id,matchId,team]);
+const u=(await client.query('SELECT id,username,role,points FROM users WHERE id=$1',[req.user.id])).rows[0];
+await client.query('COMMIT');
+res.status(201).json({
+  user:u,
+  message:`预测 ${team} 成功，比赛结算后猜中 +50 积分`
+});
   }catch(e){await client.query('ROLLBACK');res.status(e.status||500).json({message:e.status?e.message:'预测失败'})}
   finally{client.release()}
 });

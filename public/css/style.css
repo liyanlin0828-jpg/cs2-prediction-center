@@ -321,6 +321,20 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   font-weight:700;
 }
 .history{padding:8px 0}
+.history-head{
+  display:grid;
+  grid-template-columns:1.25fr 1.75fr .7fr;
+  gap:14px;
+  padding:10px 22px 12px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+
+.history-head span:nth-child(3){
+  text-align:center;
+}
 .history-row{
   display:grid;
   grid-template-columns:1.25fr 1.75fr .7fr;
@@ -585,4 +599,8 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   color:#f6c86b;
   background:rgba(246,200,107,.10);
   border:1px solid rgba(246,200,107,.25);
+}@media(max-width:620px){
+  .history-head{
+    display:none;
+  }
 }

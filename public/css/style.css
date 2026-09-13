@@ -674,4 +674,13 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   color:#ff8f9b;
   background:rgba(255,82,102,.10);
   border:1px solid rgba(255,82,102,.28);
+}/* Countdown urgency */
+.countdown.soon{
+  color:#f6c86b;
+  font-weight:800;
+}
+
+.countdown.locked{
+  color:#ff8f9b;
+  font-weight:800;
 }

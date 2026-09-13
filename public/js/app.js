@@ -47,8 +47,9 @@ function isPredictionLocked(iso){
 }
 function renderMatches(){
   const grid=$('matchesGrid');
-  if(!state.matches.length){grid.innerHTML='<div class="empty">暂无可预测比赛</div>';return}
-  grid.innerHTML=state.matches.map(m=>{
+  const visibleMatches=state.matches.filter(m=>new Date(m.starts_at).getTime()>Date.now());
+  if(!visibleMatches.length){grid.innerHTML='<div class="empty">暂无可预测比赛</div>';return}
+  grid.innerHTML=visibleMatches.map(m=>{
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';
     const sourceClass=m.source==='pandascore'?'':' manual';
     const locked=isPredictionLocked(m.starts_at);

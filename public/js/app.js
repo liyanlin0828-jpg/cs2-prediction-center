@@ -1,4 +1,4 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login'};
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all'};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
   const headers={'Content-Type':'application/json',...(options.headers||{})};
@@ -47,7 +47,13 @@ function isPredictionLocked(iso){
 }
 function renderMatches(){
   const grid=$('matchesGrid');
-  const visibleMatches=state.matches.filter(m=>new Date(m.starts_at).getTime()>Date.now());
+  const visibleMatches=state.matches
+  .filter(m=>new Date(m.starts_at).getTime()>Date.now())
+  .filter(m=>{
+    if(state.matchFilter==='pending')return !m.user_prediction;
+    if(state.matchFilter==='predicted')return !!m.user_prediction;
+    return true;
+  });
   if(!visibleMatches.length){grid.innerHTML='<div class="empty">暂无可预测比赛</div>';return}
   grid.innerHTML=visibleMatches.map(m=>{
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';
@@ -211,6 +217,17 @@ function logout(show=true){
   renderUser();$('profileCard').innerHTML='<div class="empty">请登录后查看。</div>';
   if(show)toast('已退出登录');
 }
+document.querySelectorAll('.match-filter').forEach(btn=>{
+  btn.onclick=()=>{
+    state.matchFilter=btn.dataset.filter||'all';
+
+    document.querySelectorAll('.match-filter').forEach(x=>{
+      x.classList.toggle('active',x===btn);
+    });
+
+    renderMatches();
+  };
+});
 window.addEventListener('load',async()=>{
   try{await loadAll();setInterval(async()=>{
   try{

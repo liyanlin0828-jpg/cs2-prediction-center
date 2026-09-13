@@ -83,9 +83,19 @@ const visibleMatches=upcomingMatches.filter(m=>{
     const sourceClass=m.source==='pandascore'?'':' manual';
     const locked=isPredictionLocked(m.starts_at);
     const predictionDisabled=locked||!!m.user_prediction;
+    const timeToStart=new Date(m.starts_at).getTime()-Date.now();
+
+const matchStatus=m.user_prediction
+  ? 'predicted'
+  : locked
+    ? 'locked'
+    : timeToStart<=30*60*1000
+      ? 'soon'
+      : '';
     return `<article class="match-card">
       <div class="match-title-row">
         <span class="live-source${sourceClass}">${source}</span>
+        ${matchStatus?`<span class="match-status ${matchStatus}">${matchStatus==='predicted'?'✓ 已预测':matchStatus==='locked'?'🔒 已锁盘':'⏳ 即将锁盘'}</span>`:''}
         <span class="countdown">${countdown(m.starts_at)}</span>
       </div>
       <div class="match-meta">

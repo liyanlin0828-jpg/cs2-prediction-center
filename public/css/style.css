@@ -715,3 +715,32 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   outline:2px solid #8ca5ff;
   outline-offset:3px;
 }
+/* Match search */
+.match-search{
+  min-width:220px;
+  padding:9px 14px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:rgba(255,255,255,.035);
+  color:var(--text);
+  font-size:13px;
+  outline:none;
+  transition:border-color .2s,background .2s,box-shadow .2s;
+}
+
+.match-search::placeholder{
+  color:var(--muted);
+}
+
+.match-search:focus{
+  border-color:#5b8cff;
+  background:rgba(91,140,255,.08);
+  box-shadow:0 0 0 3px rgba(91,140,255,.12);
+}
+
+@media(max-width:620px){
+  .match-search{
+    width:100%;
+    min-width:0;
+  }
+}

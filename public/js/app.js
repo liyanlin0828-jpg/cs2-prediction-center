@@ -175,7 +175,7 @@ async function renderProfile(){
     <div class="profile-badge">${state.me.role==='admin'?'管理员':'玩家'}</div></div>
     <div class="history">${predictions.length?predictions.map(p=>`
       <div class="history-row"><span>${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}</span>
-     <span>${escapeHtml(p.predicted_team)}</span>
+     <span>预测：${escapeHtml(p.predicted_team)}${p.winner?' · 获胜：'+escapeHtml(p.winner):''}</span>
 <span>${p.result==='win'
   ? '✅ 猜中 +'+Number(p.points_delta||0)+' 积分'
   : p.result==='loss'

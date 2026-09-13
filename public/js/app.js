@@ -17,7 +17,7 @@ function logo(url,name){
 }
 function countdown(iso){
   const d=new Date(iso).getTime()-Date.now();
-  if(d<=0)return '即将开始';
+  if(d<=0)return '比赛已开始';
   const h=Math.floor(d/3600000),m=Math.floor((d%3600000)/60000);
   if(h>=24)return `${Math.floor(h/24)}天 ${h%24}小时`;
   return `${h}小时 ${m}分`;

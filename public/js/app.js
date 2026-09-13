@@ -34,6 +34,10 @@ async function loadAll(){
   state.matches=matches.matches;state.leaderboard=leaderboard.users;
   if(state.token){try{state.me=(await api('/auth/me')).user}catch{logout(false)}}
   renderMatches();renderLeaderboard();renderUser();
+  const detail=$('matchDetail');
+if(detail&&!detail.classList.contains('hidden')&&detail.dataset.matchId){
+  openMatchDetail(detail.dataset.matchId,true);
+}
   if(state.me)await renderProfile();else $('profileCard').innerHTML='<div class="empty">请登录后查看。</div>';
 }
 function renderUser(){
@@ -121,7 +125,7 @@ const matchStatus=m.user_prediction
 </div>
     </article>`;
   }).join('');
-}function openMatchDetail(matchId){
+function openMatchDetail(matchId,autoRefresh=false){
   const m=state.matches.find(x=>Number(x.id)===Number(matchId));
   if(!m){
     toast('找不到比赛');
@@ -190,12 +194,16 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
     </div>
   `;
 
-  matches.classList.add('hidden');
-  detail.classList.remove('hidden');
+ detail.dataset.matchId=String(m.id);
+matches.classList.add('hidden');
+detail.classList.remove('hidden');
+
+if(!autoRefresh){
   window.scrollTo({
-  top: detail.offsetTop - 80,
-  behavior: 'smooth'
-});
+    top:detail.offsetTop-80,
+    behavior:'smooth'
+  });
+}
 }
 
 window.openMatchDetail=openMatchDetail;

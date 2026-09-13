@@ -62,7 +62,7 @@ function renderMatches(){
           ${logo(m.team_a_logo,m.team_a)}
           <strong>${escapeHtml(m.team_a)}</strong><span>${m.odds_a}</span>
         </button>
-        <div class="vs">VS${m.match_type?`<div class="match-format">${escapeHtml(m.match_type)}</div>`:''}</div>
+        <div class="vs">VS${m.number_of_games?`<div class="match-format">BO${Number(m.number_of_games)}</div>`:(m.match_type?`<div class="match-format">${escapeHtml(m.match_type)}</div>`:'')}</div>
         <button class="team ${m.user_prediction===m.team_b?'selected':''}" onclick="predict(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">
           ${logo(m.team_b_logo,m.team_b)}
           <strong>${escapeHtml(m.team_b)}</strong><span>${m.odds_b}</span>

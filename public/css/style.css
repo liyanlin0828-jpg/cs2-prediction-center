@@ -645,4 +645,33 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
     flex:1;
     text-align:center;
   }
+}/* Match status badges */
+.match-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+  line-height:1;
+}
+
+.match-status.predicted{
+  color:#6ee7a8;
+  background:rgba(46,204,113,.10);
+  border:1px solid rgba(46,204,113,.28);
+}
+
+.match-status.soon{
+  color:#f6c86b;
+  background:rgba(246,200,107,.10);
+  border:1px solid rgba(246,200,107,.28);
+}
+
+.match-status.locked{
+  color:#ff8f9b;
+  background:rgba(255,82,102,.10);
+  border:1px solid rgba(255,82,102,.28);
 }

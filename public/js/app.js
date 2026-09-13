@@ -92,7 +92,7 @@ function renderMatches(){
   const card=$('matchDetailCard');
   const matches=$('matches');
   const locked=isPredictionLocked(m.starts_at);
-
+  const predictionDisabled=locked||!!m.user_prediction;
   card.innerHTML=`
     <div class="match-detail-header">
       <span class="live-source ${m.source==='pandascore'?'pandascore':'manual'}">
@@ -106,7 +106,7 @@ function renderMatches(){
 
     <div class="teams">
       <button class="team ${m.user_prediction===m.team_a?'selected':''} ${locked?'locked':''}"
-  ${locked?'disabled':''}
+  ${predictionDisabled?'disabled':''}
   onclick="predict(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">
         ${logo(m.team_a_logo,m.team_a)}
         <strong>${escapeHtml(m.team_a)}</strong>
@@ -124,7 +124,7 @@ function renderMatches(){
       </div>
 
       <button class="team ${m.user_prediction===m.team_b?'selected':''} ${locked?'locked':''}"
-  ${locked?'disabled':''}
+  ${predictionDisabled?'disabled':''}
   onclick="predict(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">
         ${logo(m.team_b_logo,m.team_b)}
         <strong>${escapeHtml(m.team_b)}</strong>

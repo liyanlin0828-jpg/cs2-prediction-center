@@ -189,8 +189,14 @@ app.post('/api/predictions',auth,async(req,res)=>{
   const client=await pool.connect();
   try{
     await client.query('BEGIN');
-    const m=(await client.query("SELECT * FROM matches WHERE id=$1 AND status='open' AND starts_at>NOW() FOR UPDATE",[matchId])).rows[0];
-    if(!m)throw Object.assign(new Error('比赛不存在、已关闭或已开始'),{status:400});
+    const m=(await client.query(
+  "SELECT * FROM matches WHERE id=$1 AND status='open' AND starts_at>NOW()+INTERVAL '10 minutes' FOR UPDATE",
+  [matchId]
+)).rows[0];
+    if(!m)throw Object.assign(
+  new Error('竞猜已锁定：比赛开始前10分钟停止预测'),
+  {status:400}
+);
     if(team!==m.team_a&&team!==m.team_b)throw Object.assign(new Error('无效的预测队伍'),{status:400});
     if((await client.query('SELECT 1 FROM predictions WHERE user_id=$1 AND match_id=$2',[req.user.id,matchId])).rowCount)
       throw Object.assign(new Error('这场比赛已经预测过了'),{status:409});

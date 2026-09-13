@@ -68,10 +68,78 @@ function renderMatches(){
           <strong>${escapeHtml(m.team_b)}</strong><span>${m.odds_b}</span>
         </button>
       </div>
-      <div class="match-footer"><span>猜中奖励：+50</span><span>${m.user_prediction?'已预测':'尚未预测'}</span></div>
+      <div class="match-footer">
+  <span>猜中奖励：+50</span>
+  <span>${m.user_prediction?'已预测':'尚未预测'}</span>
+  <button class="match-detail-btn" onclick="event.stopPropagation();openMatchDetail(${m.id})">查看详情 →</button>
+</div>
     </article>`;
   }).join('');
+}function openMatchDetail(matchId){
+  const m=state.matches.find(x=>Number(x.id)===Number(matchId));
+  if(!m){
+    toast('找不到比赛');
+    return;
+  }
+
+  const detail=$('matchDetail');
+  const card=$('matchDetailCard');
+  const matches=$('matches');
+
+  card.innerHTML=`
+    <div class="match-detail-header">
+      <span class="live-source ${m.source==='pandascore'?'pandascore':'manual'}">
+        ${m.source==='pandascore'?'PandaScore':'手动赛事'}
+      </span>
+      <span class="countdown">${countdown(m.starts_at)}</span>
+    </div>
+
+    <h2>${escapeHtml(m.event_name)}</h2>
+    <p>${new Date(m.starts_at).toLocaleString('zh-CN')}</p>
+
+    <div class="teams">
+      <button class="team ${m.user_prediction===m.team_a?'selected':''}"
+        onclick="predict(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">
+        ${logo(m.team_a_logo,m.team_a)}
+        <strong>${escapeHtml(m.team_a)}</strong>
+        <span>${m.odds_a}</span>
+      </button>
+
+      <div class="vs">
+        VS
+        ${m.number_of_games
+          ? `<div class="match-format">BO${Number(m.number_of_games)}</div>`
+          : (m.match_type
+              ? `<div class="match-format">${escapeHtml(m.match_type)}</div>`
+              : '')
+        }
+      </div>
+
+      <button class="team ${m.user_prediction===m.team_b?'selected':''}"
+        onclick="predict(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">
+        ${logo(m.team_b_logo,m.team_b)}
+        <strong>${escapeHtml(m.team_b)}</strong>
+        <span>${m.odds_b}</span>
+      </button>
+    </div>
+
+    <div class="match-footer">
+      <span>猜中奖励：+50</span>
+      <span>${m.user_prediction?'当前预测：'+escapeHtml(m.user_prediction):'尚未预测'}</span>
+    </div>
+  `;
+
+  matches.classList.add('hidden');
+  detail.classList.remove('hidden');
+  detail.scrollIntoView({behavior:'smooth',block:'start'});
 }
+
+window.openMatchDetail=openMatchDetail;
+$('backToMatchesBtn').onclick=()=>{
+  $('matchDetail').classList.add('hidden');
+  $('matches').classList.remove('hidden');
+  $('matches').scrollIntoView({behavior:'smooth',block:'start'});
+};
 async function predict(matchId,team){
   if(!state.me){openAuth('login');toast('请先登录');return}
   try{

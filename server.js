@@ -59,9 +59,9 @@ async function syncUpcoming(){
     const r=await pool.query(`
       INSERT INTO matches(
         event_name,team_a,team_b,odds_a,odds_b,starts_at,status,source,external_id,
-        team_a_logo,team_b_logo,source_status,match_type,synced_at
+team_a_logo,team_b_logo,source_status,match_type,number_of_games,synced_at
       )
-      VALUES($1,$2,$3,1.80,1.80,$4,'open','pandascore',$5,$6,$7,$8,$9,NOW())
+      VALUES($1,$2,$3,1.80,1.80,$4,'open','pandascore',$5,$6,$7,$8,$9,$10,NOW())
       ON CONFLICT(source,external_id) WHERE external_id IS NOT NULL
       DO UPDATE SET
         event_name=EXCLUDED.event_name,
@@ -72,11 +72,14 @@ async function syncUpcoming(){
         team_b_logo=EXCLUDED.team_b_logo,
         source_status=EXCLUDED.source_status,
         match_type=EXCLUDED.match_type,
+        number_of_games=EXCLUDED.number_of_games,
         synced_at=NOW()
       RETURNING (xmax=0) AS inserted
     `,[
       leagueLabel(x),teams.a.name,teams.b.name,x.begin_at,String(x.id),
-      teams.a.image_url||null,teams.b.image_url||null,x.status||'not_started',x.match_type||null
+      teams.a.image_url||null,teams.b.image_url||null,x.status||'not_started',
+x.match_type||null,
+x.number_of_games||null
     ]);
     if(r.rows[0]?.inserted)inserted++;else updated++;
   }

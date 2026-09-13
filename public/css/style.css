@@ -484,3 +484,77 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
 .sync-chip{padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.025)}
 .sync-chip strong{display:block;font-size:18px;margin-top:5px}
 @media(max-width:700px){.sync-status{grid-template-columns:1fr}}
+/* Match detail polish */
+.match-detail-card{
+  margin-top:18px;
+  padding:28px;
+  border:1px solid var(--border);
+  border-radius:22px;
+  background:
+    radial-gradient(circle at top left,rgba(91,140,255,.12),transparent 34%),
+    linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.018));
+  box-shadow:0 18px 50px rgba(0,0,0,.22);
+}
+
+.match-detail-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:20px;
+}
+
+.match-detail-card h2{
+  margin:0 0 8px;
+  font-size:28px;
+  line-height:1.2;
+}
+
+.match-detail-card > p{
+  margin:0 0 24px;
+  color:var(--muted);
+}
+
+.match-detail-card .teams{
+  margin-top:18px;
+  gap:18px;
+}
+
+.match-detail-card .team{
+  min-height:150px;
+  border-radius:18px;
+}
+
+.match-detail-card .team-logo{
+  width:58px;
+  height:58px;
+}
+
+.match-detail-card .team strong{
+  font-size:20px;
+}
+
+.match-detail-card .vs{
+  min-width:72px;
+  font-size:14px;
+}
+
+.match-detail-card .match-footer{
+  margin-top:22px;
+  padding-top:18px;
+  border-top:1px solid rgba(255,255,255,.07);
+}
+
+@media(max-width:700px){
+  .match-detail-card{
+    padding:20px;
+  }
+
+  .match-detail-card h2{
+    font-size:22px;
+  }
+
+  .match-detail-card .team{
+    min-height:120px;
+  }
+}

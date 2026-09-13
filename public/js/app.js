@@ -84,6 +84,7 @@ const visibleMatches=upcomingMatches.filter(m=>{
     const locked=isPredictionLocked(m.starts_at);
     const predictionDisabled=locked||!!m.user_prediction;
     const timeToStart=new Date(m.starts_at).getTime()-Date.now();
+    const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
 
 const matchStatus=m.user_prediction
   ? 'predicted'
@@ -96,7 +97,7 @@ const matchStatus=m.user_prediction
       <div class="match-title-row">
         <span class="live-source${sourceClass}">${source}</span>
         ${matchStatus?`<span class="match-status ${matchStatus}">${matchStatus==='predicted'?'✓ 已预测':matchStatus==='locked'?'🔒 已锁盘':'⏳ 即将锁盘'}</span>`:''}
-        <span class="countdown">${countdown(m.starts_at)}</span>
+        <span class="countdown ${countdownClass}">${countdown(m.starts_at)}</span>
       </div>
       <div class="match-meta">
         <span>${escapeHtml(m.event_name)}</span>

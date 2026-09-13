@@ -160,7 +160,8 @@ async function predict(matchId,team){
   if(!window.confirm(`确认预测 ${team} 吗？提交后不能修改。`))return;
   try{
     const data=await api('/predictions',{method:'POST',body:JSON.stringify({matchId,team})});
-    state.me=data.user;toast(data.message||'预测成功');await loadAll();
+   state.me=data.user;toast(data.message||'预测成功');await loadAll();
+if(!$('matchDetail').classList.contains('hidden'))openMatchDetail(matchId);
   }catch(e){toast(e.message)}
 }
 window.predict=predict;

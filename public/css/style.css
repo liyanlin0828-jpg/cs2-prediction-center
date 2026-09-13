@@ -241,7 +241,7 @@ button{cursor:pointer}
   background:var(--surface-2);
   transition:.18s ease;
 }
-.team:hover{
+.team:not(:disabled):hover{
   transform:translateY(-2px);
   border-color:#45679d;
   background:#192437;
@@ -250,6 +250,12 @@ button{cursor:pointer}
   border-color:var(--accent);
   box-shadow:0 0 0 2px rgba(91,140,255,.18) inset,0 10px 28px rgba(91,140,255,.14);
   background:linear-gradient(180deg,rgba(91,140,255,.13),rgba(91,140,255,.05)),var(--surface-2);
+}.team:disabled{
+  cursor:not-allowed;
+}
+
+.team:disabled:not(.selected){
+  opacity:.55;
 }
 .team strong{font-size:17px}
 .team span{font-size:13px;color:#aac2ff}

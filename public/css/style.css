@@ -603,4 +603,46 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   .history-head{
     display:none;
   }
+}/* Match filters */
+.match-filters{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.match-filter{
+  padding:8px 14px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:rgba(255,255,255,.035);
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  transition:.2s ease;
+}
+
+.match-filter:hover{
+  color:var(--text);
+  border-color:rgba(91,140,255,.45);
+  background:rgba(91,140,255,.08);
+}
+
+.match-filter.active{
+  color:#fff;
+  border-color:rgba(91,140,255,.65);
+  background:linear-gradient(135deg,#5b8cff,#8b5cf6);
+}
+
+@media(max-width:620px){
+  .match-filters{
+    width:100%;
+    margin-top:10px;
+  }
+
+  .match-filter{
+    flex:1;
+    text-align:center;
+  }
 }

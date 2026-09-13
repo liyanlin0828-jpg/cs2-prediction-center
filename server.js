@@ -90,7 +90,10 @@ async function settleMatch(matchId,winner){
   const client=await pool.connect();
   try{
     await client.query('BEGIN');
-    const m=(await client.query('SELECT * FROM matches WHERE id=$1 FOR UPDATE',[matchId])).rows[0];
+  const m=(await client.query(
+  "SELECT * FROM matches WHERE id=$1 FOR UPDATE",
+  [matchId]
+)).rows[0];
     if(!m)throw Object.assign(new Error('比赛不存在'),{status:404});
     if(m.status==='settled')return {settledPredictions:0,alreadySettled:true};
     if(winner!==m.team_a&&winner!==m.team_b)throw Object.assign(new Error('获胜队伍无效'),{status:400});

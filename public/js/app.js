@@ -125,6 +125,8 @@ const matchStatus=m.user_prediction
 </div>
     </article>`;
   }).join('');
+  }
+
 function openMatchDetail(matchId,autoRefresh=false){
   const m=state.matches.find(x=>Number(x.id)===Number(matchId));
   if(!m){

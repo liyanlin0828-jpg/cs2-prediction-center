@@ -32,7 +32,18 @@
   </section>
 
   <section id="matches" class="section">
-    <div class="section-head"><div><h2>🔥 热门比赛</h2><p>选择你认为会获胜的战队</p></div></div>
+    <div class="section-head">
+  <div>
+    <h2>🔥 热门比赛</h2>
+    <p>选择你认为会获胜的战队</p>
+  </div>
+
+  <div class="match-filters">
+    <button type="button" class="match-filter active" data-filter="all">全部</button>
+    <button type="button" class="match-filter" data-filter="pending">未预测</button>
+    <button type="button" class="match-filter" data-filter="predicted">已预测</button>
+  </div>
+</div>
     <div id="matchesGrid" class="match-grid"></div>
   </section>
   

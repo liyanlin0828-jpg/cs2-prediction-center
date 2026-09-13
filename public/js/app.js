@@ -182,6 +182,7 @@ async function renderProfile(){
     ? '❌ 猜错 +'+Number(p.points_delta||0)+' 积分'
     : '⏳ 待结算'
 }</span></div>
+`).join('')
       :'<div class="empty">还没有预测记录。</div>'}</div>`;
 }
 $('loginBtn').onclick=()=>openAuth('login');

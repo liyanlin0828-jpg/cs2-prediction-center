@@ -76,7 +76,7 @@ function renderMatches(){
       </div>
       <div class="match-footer">
   <span>猜中奖励：+50</span>
-  <span>${m.user_prediction?'已预测':(locked?'🔒 已锁盘':'尚未预测')}</span>
+ <span>${m.user_prediction?'已预测：'+escapeHtml(m.user_prediction):(locked?'🔒 已锁盘':'尚未预测')}</span>
   <button class="match-detail-btn" onclick="event.stopPropagation();openMatchDetail(${m.id})">查看详情 →</button>
 </div>
     </article>`;

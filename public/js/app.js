@@ -47,13 +47,26 @@ function isPredictionLocked(iso){
 }
 function renderMatches(){
   const grid=$('matchesGrid');
-  const visibleMatches=state.matches
-  .filter(m=>new Date(m.starts_at).getTime()>Date.now())
-  .filter(m=>{
-    if(state.matchFilter==='pending')return !m.user_prediction;
-    if(state.matchFilter==='predicted')return !!m.user_prediction;
-    return true;
-  });
+  const upcomingMatches=state.matches.filter(
+  m=>new Date(m.starts_at).getTime()>Date.now()
+);
+
+const predictedCount=upcomingMatches.filter(m=>!!m.user_prediction).length;
+const pendingCount=upcomingMatches.length-predictedCount;
+
+const allBtn=document.querySelector('.match-filter[data-filter="all"]');
+const pendingBtn=document.querySelector('.match-filter[data-filter="pending"]');
+const predictedBtn=document.querySelector('.match-filter[data-filter="predicted"]');
+
+if(allBtn)allBtn.textContent=`全部 ${upcomingMatches.length}`;
+if(pendingBtn)pendingBtn.textContent=`未预测 ${pendingCount}`;
+if(predictedBtn)predictedBtn.textContent=`已预测 ${predictedCount}`;
+
+const visibleMatches=upcomingMatches.filter(m=>{
+  if(state.matchFilter==='pending')return !m.user_prediction;
+  if(state.matchFilter==='predicted')return !!m.user_prediction;
+  return true;
+});
   if(!visibleMatches.length){grid.innerHTML='<div class="empty">暂无可预测比赛</div>';return}
   grid.innerHTML=visibleMatches.map(m=>{
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';

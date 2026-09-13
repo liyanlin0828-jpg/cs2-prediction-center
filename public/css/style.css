@@ -683,4 +683,29 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
 .countdown.locked{
   color:#ff8f9b;
   font-weight:800;
+}/* Match detail button */
+.match-detail-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px 14px;
+  border:1px solid #354766;
+  border-radius:10px;
+  background:#1b2940;
+  color:#e6efff;
+  font:inherit;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .2s,border-color .2s;
+}
+
+.match-detail-btn:hover{
+  background:#263957;
+  border-color:#6585ff;
+}
+
+.match-detail-btn:focus-visible{
+  outline:2px solid #8ca5ff;
+  outline-offset:3px;
 }

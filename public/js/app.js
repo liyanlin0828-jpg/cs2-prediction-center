@@ -141,7 +141,10 @@ function renderMatches(){
 
   matches.classList.add('hidden');
   detail.classList.remove('hidden');
-  detail.scrollIntoView({behavior:'smooth',block:'start'});
+  window.scrollTo({
+  top: detail.offsetTop - 80,
+  behavior: 'smooth'
+});
 }
 
 window.openMatchDetail=openMatchDetail;

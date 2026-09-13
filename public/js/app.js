@@ -53,6 +53,7 @@ function renderMatches(){
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';
     const sourceClass=m.source==='pandascore'?'':' manual';
     const locked=isPredictionLocked(m.starts_at);
+    const predictionDisabled=locked||!!m.user_prediction;
     return `<article class="match-card">
       <div class="match-title-row">
         <span class="live-source${sourceClass}">${source}</span>
@@ -63,12 +64,12 @@ function renderMatches(){
         <span>${new Date(m.starts_at).toLocaleString('zh-CN')}</span>
       </div>
       <div class="teams">
-        <button class="team ${m.user_prediction===m.team_a?'selected':''} ${locked?'locked':''}" ${locked?'disabled':''} onclick="predict(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">
+        <button class="team ${m.user_prediction===m.team_a?'selected':''} ${locked?'locked':''}" ${predictionDisabled?'disabled':''} onclick="predict(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">
           ${logo(m.team_a_logo,m.team_a)}
           <strong>${escapeHtml(m.team_a)}</strong><span>${m.odds_a}</span>
         </button>
         <div class="vs">VS${m.number_of_games?`<div class="match-format">BO${Number(m.number_of_games)}</div>`:(m.match_type?`<div class="match-format">${escapeHtml(m.match_type)}</div>`:'')}</div>
-       <button class="team ${m.user_prediction===m.team_b?'selected':''} ${locked?'locked':''}" ${locked?'disabled':''} onclick="predict(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">
+       <button class="team ${m.user_prediction===m.team_b?'selected':''} ${locked?'locked':''}" ${predictionDisabled?'disabled':''} onclick="predict(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">
           ${logo(m.team_b_logo,m.team_b)}
           <strong>${escapeHtml(m.team_b)}</strong><span>${m.odds_b}</span>
         </button>

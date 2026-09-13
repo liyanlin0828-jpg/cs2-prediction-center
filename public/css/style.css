@@ -557,4 +557,32 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   .match-detail-card .team{
     min-height:120px;
   }
+}/* Prediction result badges */
+.prediction-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.prediction-status.win{
+  color:#6ee7a8;
+  background:rgba(46,204,113,.10);
+  border:1px solid rgba(46,204,113,.25);
+}
+
+.prediction-status.loss{
+  color:#ff8f9b;
+  background:rgba(255,82,102,.10);
+  border:1px solid rgba(255,82,102,.25);
+}
+
+.prediction-status.pending{
+  color:#f6c86b;
+  background:rgba(246,200,107,.10);
+  border:1px solid rgba(246,200,107,.25);
 }

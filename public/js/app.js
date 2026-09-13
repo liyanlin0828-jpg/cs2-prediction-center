@@ -209,5 +209,11 @@ function logout(show=true){
   if(show)toast('已退出登录');
 }
 window.addEventListener('load',async()=>{
-  try{await loadAll();setInterval(renderMatches,60000)}catch(e){toast(e.message)}
+  try{await loadAll();setInterval(async()=>{
+  try{
+    await loadAll();
+  }catch(e){
+    console.error('[AutoRefresh]',e.message);
+  }
+},60000)}catch(e){toast(e.message)}
 });

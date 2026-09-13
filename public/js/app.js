@@ -133,12 +133,21 @@ const matchStatus=m.user_prediction
   const matches=$('matches');
   const locked=isPredictionLocked(m.starts_at);
   const predictionDisabled=locked||!!m.user_prediction;
+  const timeToStart=new Date(m.starts_at).getTime()-Date.now();
+const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
   card.innerHTML=`
     <div class="match-detail-header">
       <span class="live-source ${m.source==='pandascore'?'pandascore':'manual'}">
         ${m.source==='pandascore'?'PandaScore':'手动赛事'}
       </span>
-      <span class="countdown">${countdown(m.starts_at)}</span>
+      ${m.user_prediction
+  ? '<span class="match-status predicted">✓ 已预测</span>'
+  : locked
+    ? '<span class="match-status locked">🔒 已锁盘</span>'
+    : timeToStart<=30*60*1000
+      ? '<span class="match-status soon">⏳ 即将锁盘</span>'
+      : ''}
+      <span class="countdown ${countdownClass}">${countdown(m.starts_at)}</span>
     </div>
 
     <h2>${escapeHtml(m.event_name)}</h2>

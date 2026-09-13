@@ -67,7 +67,17 @@ const visibleMatches=upcomingMatches.filter(m=>{
   if(state.matchFilter==='predicted')return !!m.user_prediction;
   return true;
 });
-  if(!visibleMatches.length){grid.innerHTML='<div class="empty">暂无可预测比赛</div>';return}
+  if(!visibleMatches.length){
+  const emptyText=
+    state.matchFilter==='pending'
+      ? '暂无未预测比赛'
+      : state.matchFilter==='predicted'
+        ? '暂无已预测比赛'
+        : '暂无未来比赛';
+
+  grid.innerHTML=`<div class="empty">${emptyText}</div>`;
+  return;
+}
   grid.innerHTML=visibleMatches.map(m=>{
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';
     const sourceClass=m.source==='pandascore'?'':' manual';

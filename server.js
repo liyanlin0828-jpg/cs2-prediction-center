@@ -224,12 +224,48 @@ app.get('/api/admin/matches',auth,admin,async(req,res)=>{
   const r=await pool.query('SELECT * FROM matches ORDER BY starts_at DESC LIMIT 500');res.json({matches:r.rows});
 });
 app.post('/api/admin/matches',auth,admin,async(req,res)=>{
-  const {eventName,teamA,teamB,oddsA=1.8,oddsB=1.8,startsAt}=req.body||{};
-  if(!eventName||!teamA||!teamB||!startsAt)return res.status(400).json({message:'缺少比赛字段'});
-  if(teamA===teamB)return res.status(400).json({message:'两支队伍不能相同'});
-  const r=await pool.query(`INSERT INTO matches(event_name,team_a,team_b,odds_a,odds_b,starts_at,source)
-    VALUES($1,$2,$3,$4,$5,$6,'manual') RETURNING *`,[eventName,teamA,teamB,oddsA,oddsB,startsAt]);
-  res.status(201).json({match:r.rows[0]});
+const {
+  eventName,
+  teamA,
+  teamB,
+  oddsA=1.8,
+  oddsB=1.8,
+  numberOfGames=3,
+  startsAt
+}=req.body||{};
+
+if(!eventName||!teamA||!teamB||!startsAt)
+  return res.status(400).json({message:'缺少比赛字段'});
+
+if(teamA===teamB)
+  return res.status(400).json({message:'两支队伍不能相同'});
+
+const r=await pool.query(`
+  INSERT INTO matches(
+    event_name,
+    team_a,
+    team_b,
+    odds_a,
+    odds_b,
+    number_of_games,
+    match_type,
+    starts_at,
+    source
+  )
+  VALUES($1,$2,$3,$4,$5,$6,'best_of',$7,'manual')
+  RETURNING *
+`,[
+  eventName,
+  teamA,
+  teamB,
+  oddsA,
+  oddsB,
+  numberOfGames,
+  startsAt
+]);
+
+res.status(201).json({match:r.rows[0]});
+
 });
 app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
   try{const r=await settleMatch(req.params.id,(req.body||{}).winner);res.json({message:'比赛已结算',...r})}

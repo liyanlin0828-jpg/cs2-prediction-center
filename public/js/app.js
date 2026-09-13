@@ -173,7 +173,9 @@ async function renderProfile(){
     <div class="profile-top"><div><h3>${escapeHtml(state.me.username)}</h3>
     <p>积分 ${state.me.points} · ${state.me.win_rate}% 胜率</p></div>
     <div class="profile-badge">${state.me.role==='admin'?'管理员':'玩家'}</div></div>
-    <div class="history">${predictions.length?predictions.map(p=>`
+    <div class="history">
+  <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
+  ${predictions.length?predictions.map(p=>`
       <div class="history-row"><span>${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}</span>
      <span>预测：${escapeHtml(p.predicted_team)}${p.winner?' · 获胜：'+escapeHtml(p.winner):''}${p.created_at?' · 预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}</span>
 <span class="prediction-status ${p.result==='win'?'win':p.result==='loss'?'loss':'pending'}">${p.result==='win'

@@ -175,7 +175,8 @@ async function renderProfile(){
     <div class="profile-badge">${state.me.role==='admin'?'管理员':'玩家'}</div></div>
     <div class="history">${predictions.length?predictions.map(p=>`
       <div class="history-row"><span>${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}</span>
-      <span>${escapeHtml(p.predicted_team)}</span><span>${p.result||'待结算'}</span></div>`).join('')
+     <span>${escapeHtml(p.predicted_team)}</span>
+<span>${p.result==='win'?'✅ 猜中':p.result==='loss'?'❌ 猜错':'⏳ 待结算'}</span></div>
       :'<div class="empty">还没有预测记录。</div>'}</div>`;
 }
 $('loginBtn').onclick=()=>openAuth('login');

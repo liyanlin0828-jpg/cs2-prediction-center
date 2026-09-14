@@ -89,7 +89,7 @@ grid.innerHTML=visibleResults.map(m=>{
         <div class="team ${teamAWin?'selected':''}">
           ${logo(m.team_a_logo,m.team_a)}
           <strong>${escapeHtml(m.team_a)}</strong>
-          <span>${teamAWin?'🏆 胜者':'—'}</span>
+          
         </div>
 
         <div class="vs">
@@ -111,7 +111,7 @@ grid.innerHTML=visibleResults.map(m=>{
         <div class="team ${teamBWin?'selected':''}">
           ${logo(m.team_b_logo,m.team_b)}
           <strong>${escapeHtml(m.team_b)}</strong>
-          <span>${teamBWin?'🏆 胜者':'—'}</span>
+          
         </div>
       </div>
 

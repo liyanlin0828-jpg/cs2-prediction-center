@@ -1,4 +1,4 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],results:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
 historyPageSize:10};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
@@ -31,10 +31,16 @@ function openAuth(mode='login'){
 }
 function closeAuth(){$('authModal').classList.add('hidden')}
 async function loadAll(){
-  const [matches,leaderboard]=await Promise.all([api('/matches'),api('/leaderboard')]);
-  state.matches=matches.matches;state.leaderboard=leaderboard.users;
+  const [matches,leaderboard,results]=await Promise.all([
+  api('/matches'),
+  api('/leaderboard'),
+  api('/results')
+]);
+  state.matches=matches.matches;
+state.leaderboard=leaderboard.users;
+state.results=results.results||[];
   if(state.token){try{state.me=(await api('/auth/me')).user}catch{logout(false)}}
-  renderMatches();renderLeaderboard();renderUser();
+  renderMatches();renderResults();renderLeaderboard();renderUser();
   const detail=$('matchDetail');
 if(detail&&!detail.classList.contains('hidden')&&detail.dataset.matchId){
   openMatchDetail(detail.dataset.matchId,true);
@@ -46,6 +52,63 @@ function renderUser(){
   $('logoutBtn').classList.toggle('hidden',!state.me);
   $('heroPoints').textContent=state.me?state.me.points:'0';
   $('adminLink').classList.toggle('hidden',!(state.me&&state.me.role==='admin'));
+}
+function renderResults(){
+  const grid=$('resultsGrid');
+  if(!grid)return;
+
+  grid.classList.add('match-grid');
+
+  if(!state.results.length){
+    grid.innerHTML='<div class="empty">暂无已结算比赛</div>';
+    return;
+  }
+
+  grid.innerHTML=state.results.map(m=>{
+    const source=m.source==='pandascore'?'PandaScore':'手动赛事';
+    const sourceClass=m.source==='pandascore'?'':' manual';
+    const teamAWin=m.winner===m.team_a;
+    const teamBWin=m.winner===m.team_b;
+
+    return `<article class="match-card">
+      <div class="match-title-row">
+        <span class="live-source${sourceClass}">${source}</span>
+        <span class="countdown">✅ 已结束</span>
+      </div>
+
+      <div class="match-meta">
+        <span>${escapeHtml(m.event_name||'CS2 比赛')}</span>
+        <span>${new Date(m.starts_at).toLocaleString('zh-CN')}</span>
+      </div>
+
+      <div class="teams">
+        <div class="team ${teamAWin?'selected':''}">
+          ${logo(m.team_a_logo,m.team_a)}
+          <strong>${escapeHtml(m.team_a)}</strong>
+          <span>${teamAWin?'🏆 胜者':'—'}</span>
+        </div>
+
+        <div class="vs">
+          VS
+          ${m.number_of_games
+            ? `<div class="match-format">BO${Number(m.number_of_games)}</div>`
+            : ''
+          }
+        </div>
+
+        <div class="team ${teamBWin?'selected':''}">
+          ${logo(m.team_b_logo,m.team_b)}
+          <strong>${escapeHtml(m.team_b)}</strong>
+          <span>${teamBWin?'🏆 胜者':'—'}</span>
+        </div>
+      </div>
+
+      <div class="match-footer">
+        <span>🏆 胜者：${escapeHtml(m.winner)}</span>
+        <span>已结算</span>
+      </div>
+    </article>`;
+  }).join('');
 }
 function isPredictionLocked(iso){
   return new Date(iso).getTime()-Date.now()<=10*60*1000;

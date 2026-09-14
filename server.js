@@ -310,6 +310,62 @@ app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
   try{const r=await settleMatch(req.params.id,(req.body||{}).winner);res.json({message:'比赛已结算',...r})}
   catch(e){res.status(e.status||500).json({message:e.status?e.message:'结算失败'})}
 });
+app.delete('/api/admin/matches/:id',auth,admin,async(req,res)=>{
+  const client=await pool.connect();
+
+  try{
+    await client.query('BEGIN');
+
+    const m=(await client.query(
+      'SELECT id,event_name,source,status FROM matches WHERE id=$1 FOR UPDATE',
+      [req.params.id]
+    )).rows[0];
+
+    if(!m){
+      throw Object.assign(new Error('比赛不存在'),{status:404});
+    }
+
+    if(m.source!=='manual'){
+      throw Object.assign(
+        new Error('只能删除手动创建的比赛'),
+        {status:400}
+      );
+    }
+
+    const predictionCount=Number(
+      (await client.query(
+        'SELECT COUNT(*) AS count FROM predictions WHERE match_id=$1',
+        [m.id]
+      )).rows[0].count||0
+    );
+
+    if(predictionCount>0){
+      throw Object.assign(
+        new Error('该比赛已有预测记录，不能删除'),
+        {status:409}
+      );
+    }
+
+    await client.query(
+      'DELETE FROM matches WHERE id=$1',
+      [m.id]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      message:'手动比赛已删除'
+    });
+
+  }catch(e){
+    await client.query('ROLLBACK');
+    res.status(e.status||500).json({
+      message:e.status?e.message:'删除比赛失败'
+    });
+  }finally{
+    client.release();
+  }
+});
 app.post('/api/admin/sync/pandascore',auth,admin,async(req,res)=>{
   try{res.json(await syncUpcoming())}
   catch(e){console.error(e);res.status(e.status||500).json({message:e.message||'同步 PandaScore 失败'})}

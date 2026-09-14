@@ -33,6 +33,26 @@ $('syncLastRun').textContent=sync?.last_run_at
 $('syncLastSuccess').textContent=sync?.last_success_at
   ? new Date(sync.last_success_at).toLocaleString()
   : '—';
+  if(sync?.last_success_at){
+  const diffMs=Date.now()-new Date(sync.last_success_at).getTime();
+  const diffMinutes=Math.max(0,Math.floor(diffMs/60000));
+
+  let ageText;
+
+  if(diffMinutes<1){
+    ageText='刚刚';
+  }else if(diffMinutes<60){
+    ageText=`${diffMinutes} 分钟前`;
+  }else if(diffMinutes<1440){
+    ageText=`${Math.floor(diffMinutes/60)} 小时前`;
+  }else{
+    ageText=`${Math.floor(diffMinutes/1440)} 天前`;
+  }
+
+  $('syncSuccessAge').textContent=ageText;
+}else{
+  $('syncSuccessAge').textContent='—';
+}
 
 $('syncTriggerSource').textContent=sync?.trigger_source||'—';
 

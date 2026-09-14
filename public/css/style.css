@@ -565,8 +565,29 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
 .match-detail-card .team{
   min-height:150px;
   border-radius:18px;
+}.match-detail-card .team:not(:disabled){
+  cursor:pointer;
+  transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease;
 }
 
+.match-detail-card .team:not(:disabled):hover{
+  transform:translateY(-2px);
+  border-color:rgba(91,140,255,.55);
+  background:rgba(91,140,255,.08);
+  box-shadow:0 10px 28px rgba(0,0,0,.18);
+}
+
+.match-detail-card .team.selected{
+  border-color:rgba(91,140,255,.8);
+  background:rgba(91,140,255,.14);
+  box-shadow:0 0 0 1px rgba(91,140,255,.16);
+}
+
+.match-detail-card .team:disabled{
+  cursor:not-allowed;
+  opacity:.62;
+  transform:none;
+}
 .match-detail-card .team-logo{
   width:58px;
   height:58px;

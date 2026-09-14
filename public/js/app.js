@@ -219,8 +219,10 @@ matches.classList.add('hidden');
 detail.classList.remove('hidden');
 
 if(!autoRefresh){
+  const scrollOffset=window.innerWidth<=700?140:80;
+
   window.scrollTo({
-    top:detail.offsetTop-80,
+    top:Math.max(0,detail.offsetTop-scrollOffset),
     behavior:'smooth'
   });
 }

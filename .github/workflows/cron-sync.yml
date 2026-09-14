@@ -1,0 +1,27 @@
+name: CS2 Auto Sync
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Sync PandaScore matches and results
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --show-error \
+            --retry 2 \
+            --retry-delay 10 \
+            --max-time 180 \
+            -X POST \
+            -H "x-cron-secret: $CRON_SECRET" \
+            https://cs2-prediction-center.onrender.com/api/cron/sync

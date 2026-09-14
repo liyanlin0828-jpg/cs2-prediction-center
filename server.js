@@ -113,6 +113,7 @@ const isWin=p.predicted_team===winner,delta=isWin?50:0,result=isWin?'win':'loss'
 
 async function syncResults(){
   const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
+  console.log('[Score sample]',items[0]?.results,items[0]?.games);
   let checked=0,settled=0,skipped=0;
   const local=(await pool.query(`
     SELECT id,external_id,status FROM matches

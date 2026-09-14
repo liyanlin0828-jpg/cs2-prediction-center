@@ -186,7 +186,53 @@ async function syncResults(){
     skipped
   };
 }
+async function saveSyncStatus({
+  status,
+  triggerSource,
+  upcoming=null,
+  results=null,
+  errorMessage=null
+}){
+  await pool.query(`
+    UPDATE sync_status
+    SET
+      last_run_at=NOW(),
+      last_success_at=CASE
+        WHEN $1='success' THEN NOW()
+        ELSE last_success_at
+      END,
+      status=$1,
+      trigger_source=$2,
 
+      upcoming_fetched=$3,
+      upcoming_inserted=$4,
+      upcoming_updated=$5,
+      upcoming_skipped=$6,
+
+      results_fetched=$7,
+      results_checked=$8,
+      results_settled=$9,
+      results_skipped=$10,
+
+      error_message=$11
+    WHERE id=1
+  `,[
+    status,
+    triggerSource,
+
+    upcoming?.fetched ?? 0,
+    upcoming?.inserted ?? 0,
+    upcoming?.updated ?? 0,
+    upcoming?.skipped ?? 0,
+
+    results?.fetched ?? 0,
+    results?.checked ?? 0,
+    results?.settled ?? 0,
+    results?.skipped ?? 0,
+
+    errorMessage
+  ]);
+}
 app.get('/api/health',async(req,res)=>{
   try{
     await pool.query('SELECT 1');

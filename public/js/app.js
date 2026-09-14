@@ -1,4 +1,4 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all'};
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all'};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
   const headers={'Content-Type':'application/json',...(options.headers||{})};
@@ -275,7 +275,12 @@ async function renderProfile(){
   const calculatedWinRate=settledCount
     ? ((winCount/settledCount)*100).toFixed(1)
     : '0.0';
-
+const filteredPredictions=predictions.filter(p=>{
+  if(state.historyFilter==='pending')return !p.result;
+  if(state.historyFilter==='win')return p.result==='win';
+  if(state.historyFilter==='loss')return p.result==='loss';
+  return true;
+});
   $('profileHint').textContent=`${state.me.username} · ${state.me.points} 积分`;
   $('profileCard').innerHTML=`
     <div class="profile-top"><div><h3>${escapeHtml(state.me.username)}</h3>
@@ -304,8 +309,14 @@ async function renderProfile(){
   </div>
 </div>
     <div class="history">
+    <div class="history-filters">
+  <button type="button" class="history-filter ${state.historyFilter==='all'?'active':''}" data-history-filter="all">全部</button>
+<button type="button" class="history-filter ${state.historyFilter==='pending'?'active':''}" data-history-filter="pending">待结算</button>
+<button type="button" class="history-filter ${state.historyFilter==='win'?'active':''}" data-history-filter="win">猜中</button>
+<button type="button" class="history-filter ${state.historyFilter==='loss'?'active':''}" data-history-filter="loss">猜错</button>
+</div>
   <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
-  ${predictions.length?predictions.map(p=>`
+  ${filteredPredictions.length?filteredPredictions.map(p=>`
       <div class="history-row"><span>${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}</span>
      <span>预测：${escapeHtml(p.predicted_team)}${p.winner?' · 获胜：'+escapeHtml(p.winner):''}${p.created_at?' · 预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}</span>
 <span class="prediction-status ${p.result==='win'?'win':p.result==='loss'?'loss':'pending'}">${p.result==='win'
@@ -314,9 +325,18 @@ async function renderProfile(){
     ? '❌ 猜错 +'+Number(p.points_delta||0)+' 积分'
     : '⏳ 待结算'
 }</span></div>
-`).join('')
-      :'<div class="empty">还没有预测记录。</div>'}</div>`;
+      `).join('')
+  :`<div class="empty">当前筛选下没有预测记录。</div>`}
+</div>`;
+
+$('profileCard').querySelectorAll('.history-filter').forEach(btn=>{
+  btn.onclick=()=>{
+    state.historyFilter=btn.dataset.historyFilter||'all';
+    renderProfile();
+  };
+});
 }
+
 $('loginBtn').onclick=()=>openAuth('login');
 $('logoutBtn').onclick=()=>logout(true);
 $('closeModal').onclick=closeAuth;

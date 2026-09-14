@@ -961,3 +961,12 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
     min-width:0;
   }
 }
+/* Force dark appearance for history search */
+input.history-search{
+  -webkit-appearance:none;
+  appearance:none;
+  background:rgba(255,255,255,.035);
+  color:var(--text);
+  border:1px solid var(--border);
+  color-scheme:dark;
+}

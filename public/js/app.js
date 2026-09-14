@@ -222,12 +222,12 @@ const sortedMatches=[...visibleMatches].sort((a,b)=>{
     : timeA-timeB;
 });
   if(!visibleMatches.length){
-  const emptyText=
-    state.matchFilter==='pending'
-      ? '暂无未预测比赛'
-      : state.matchFilter==='predicted'
-        ? '暂无已预测比赛'
-        : '暂无未来比赛';
+ const emptyText=
+  state.matchFilter==='pending'
+    ? (state.lang==='zh'?'暂无未预测比赛':'No unpredicted matches')
+    : state.matchFilter==='predicted'
+      ? (state.lang==='zh'?'暂无已预测比赛':'No predicted matches')
+      : (state.lang==='zh'?'暂无未来比赛':'No upcoming matches');
 
   grid.innerHTML=`<div class="empty">${emptyText}</div>`;
   return;

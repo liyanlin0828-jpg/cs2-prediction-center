@@ -232,6 +232,40 @@ async function saveSyncStatus({
 
     errorMessage
   ]);
+  await pool.query(`
+  INSERT INTO sync_history (
+    status,
+    trigger_source,
+
+    upcoming_fetched,
+    upcoming_inserted,
+    upcoming_updated,
+    upcoming_skipped,
+
+    results_fetched,
+    results_checked,
+    results_settled,
+    results_skipped,
+
+    error_message
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+`,[
+  status,
+  triggerSource,
+
+  upcoming?.fetched ?? 0,
+  upcoming?.inserted ?? 0,
+  upcoming?.updated ?? 0,
+  upcoming?.skipped ?? 0,
+
+  results?.fetched ?? 0,
+  results?.checked ?? 0,
+  results?.settled ?? 0,
+  results?.skipped ?? 0,
+
+  errorMessage
+]);
 }
 app.get('/api/health',async(req,res)=>{
   try{

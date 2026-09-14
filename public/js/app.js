@@ -1,4 +1,5 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:''};
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
+historyPageSize:10};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
   const headers={'Content-Type':'application/json',...(options.headers||{})};
@@ -303,6 +304,21 @@ const searchedPredictions=filteredPredictions.filter(p=>{
     ? timeA-timeB
     : timeB-timeA;
 });
+  const totalHistoryPages=Math.max(
+  1,
+  Math.ceil(sortedPredictions.length/state.historyPageSize)
+);
+
+if(state.historyPage>totalHistoryPages){
+  state.historyPage=totalHistoryPages;
+}
+
+const historyStart=(state.historyPage-1)*state.historyPageSize;
+
+const pagedPredictions=sortedPredictions.slice(
+  historyStart,
+  historyStart+state.historyPageSize
+);
   $('profileHint').textContent=`${state.me.username} · ${state.me.points} 积分`;
   $('profileCard').innerHTML=`
     <div class="profile-top"><div><h3>${escapeHtml(state.me.username)}</h3>
@@ -351,7 +367,7 @@ const searchedPredictions=filteredPredictions.filter(p=>{
 </select>
 </div>
   <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
-  ${sortedPredictions.length?sortedPredictions.map(p=>`
+  ${pagedPredictions.length?pagedPredictions.map(p=>`
       <div class="history-row"><span>${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}</span>
      <span>预测：${escapeHtml(p.predicted_team)}${p.winner?' · 获胜：'+escapeHtml(p.winner):''}${p.created_at?' · 预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}</span>
 <span class="prediction-status ${p.result==='win'?'win':p.result==='loss'?'loss':'pending'}">${p.result==='win'
@@ -361,47 +377,73 @@ const searchedPredictions=filteredPredictions.filter(p=>{
     : '⏳ 待结算'
 }</span></div>
       `).join('')
-  :`<div class="empty">当前筛选下没有预测记录。</div>`}
-<div id="historySearchEmpty" class="empty hidden">
-  🔍 没有找到匹配的预测记录
-</div>
+  : `<div class="empty">${
+      state.historySearch.trim()
+        ? '🔍 没有找到匹配的预测记录'
+        : '当前筛选下没有预测记录。'
+    }</div>`}
+    ${sortedPredictions.length?`
+  <div class="history-pagination">
+    <button
+      type="button"
+      id="historyPrev"
+      class="history-page-btn"
+      ${state.historyPage<=1?'disabled':''}
+    >← 上一页</button>
+
+    <span class="history-page-info">
+      第 ${state.historyPage} / ${totalHistoryPages} 页
+    </span>
+
+    <button
+      type="button"
+      id="historyNext"
+      class="history-page-btn"
+      ${state.historyPage>=totalHistoryPages?'disabled':''}
+    >下一页 →</button>
+  </div>
+`:''}
 </div>`;
 
 $('profileCard').querySelectorAll('.history-filter').forEach(btn=>{
   btn.onclick=()=>{
     state.historyFilter=btn.dataset.historyFilter||'all';
-    renderProfile();
+state.historyPage=1;
+renderProfile();
   };
 });
-const historySort=$('historySort');
+const historyPrev=$('historyPrev');
+if(historyPrev){
+  historyPrev.onclick=()=>{
+    if(state.historyPage>1){
+      state.historyPage--;
+      renderProfile();
+    }
+  };
+}
+
+const historyNext=$('historyNext');
+if(historyNext){
+  historyNext.onclick=()=>{
+    if(state.historyPage<totalHistoryPages){
+      state.historyPage++;
+      renderProfile();
+    }
+  };
+}
+  const historySort=$('historySort');
 if(historySort){
   historySort.onchange=()=>{
     state.historySort=historySort.value||'desc';
-    renderProfile();
+state.historyPage=1;
+renderProfile();
   }};
 const historySearch=$('historySearch');
 if(historySearch){
-  historySearch.oninput=()=>{
+  historySearch.onchange=()=>{
     state.historySearch=historySearch.value;
-
-    const term=historySearch.value.trim().toLowerCase();
-    const rows=[...$('profileCard').querySelectorAll('.history-row')];
-    let visibleCount=0;
-
-    rows.forEach(row=>{
-      const match=!term||row.textContent.toLowerCase().includes(term);
-      row.style.display=match?'grid':'none';
-
-      if(match)visibleCount++;
-    });
-
-    const searchEmpty=$('historySearchEmpty');
-    if(searchEmpty){
-      searchEmpty.classList.toggle(
-        'hidden',
-        !term||visibleCount>0
-      );
-    }
+    state.historyPage=1;
+    renderProfile();
   };
 }
 }

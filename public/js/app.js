@@ -103,7 +103,7 @@ const sortedMatches=[...visibleMatches].sort((a,b)=>{
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';
     const sourceClass=m.source==='pandascore'?'':' manual';
     const locked=isPredictionLocked(m.starts_at);
-    const predictionDisabled=locked||!!m.user_prediction;
+    const predictionDisabled=locked;
     const timeToStart=new Date(m.starts_at).getTime()-Date.now();
     const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
 
@@ -155,7 +155,7 @@ function openMatchDetail(matchId,autoRefresh=false){
   const card=$('matchDetailCard');
   const matches=$('matches');
   const locked=isPredictionLocked(m.starts_at);
-  const predictionDisabled=locked||!!m.user_prediction;
+  const predictionDisabled=locked;
   const timeToStart=new Date(m.starts_at).getTime()-Date.now();
 const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
   card.innerHTML=`
@@ -233,11 +233,29 @@ $('backToMatchesBtn').onclick=()=>{
 };
 async function predict(matchId,team){
   if(!state.me){openAuth('login');toast('请先登录');return}
-  if(!window.confirm(`确认预测 ${team} 吗？提交后不能修改。`))return;
+  const match=state.matches.find(m=>Number(m.id)===Number(matchId));
+const currentPrediction=match?.user_prediction||null;
+
+if(currentPrediction===team){
+  toast(`当前已经预测 ${team}`);
+  return;
+}
+
+const confirmText=currentPrediction
+  ? `确认将预测从 ${currentPrediction} 修改为 ${team} 吗？`
+  : `确认预测 ${team} 吗？赛前10分钟将停止修改`;
+
+if(!window.confirm(confirmText))return;
   try{
-    const data=await api('/predictions',{method:'POST',body:JSON.stringify({matchId,team})});
-   state.me=data.user;toast(data.message||'预测成功');await loadAll();
-if(!$('matchDetail').classList.contains('hidden'))openMatchDetail(matchId);
+    
+const data=await api('/predictions',{
+  method:'POST',
+  body:JSON.stringify({matchId,team})
+});
+
+state.me=data.user;
+toast(data.message||'预测成功');
+await loadAll();
   }catch(e){toast(e.message)}
 }
 window.predict=predict;

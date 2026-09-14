@@ -18,6 +18,7 @@ const PORT=process.env.PORT||3000;
 const JWT_SECRET=process.env.JWT_SECRET||'change-this-secret';
 const PANDA_TOKEN=process.env.PANDASCORE_TOKEN||'';
 const AUTO_SYNC_MINUTES=Math.max(5,Number(process.env.AUTO_SYNC_MINUTES||15));
+const CRON_SECRET=process.env.CRON_SECRET||'';
 
 function sign(user){return jwt.sign({id:user.id,username:user.username,role:user.role},JWT_SECRET,{expiresIn:'7d'})}
 function auth(req,res,next){
@@ -364,6 +365,29 @@ app.delete('/api/admin/matches/:id',auth,admin,async(req,res)=>{
     });
   }finally{
     client.release();
+  }
+});
+app.post('/api/cron/sync',async(req,res)=>{
+  const provided=req.headers['x-cron-secret'];
+
+  if(!CRON_SECRET || provided!==CRON_SECRET){
+    return res.status(401).json({message:'Unauthorized'});
+  }
+
+  try{
+    const upcoming=await syncUpcoming();
+    const results=await syncResults();
+
+    console.log('[CronSync]',{upcoming,results});
+
+    res.json({
+      ok:true,
+      upcoming,
+      results
+    });
+  }catch(e){
+    console.error('[CronSync error]',e);
+    res.status(500).json({message:'同步失败'});
   }
 });
 app.post('/api/admin/sync/pandascore',auth,admin,async(req,res)=>{

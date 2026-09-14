@@ -638,6 +638,19 @@ function applyLanguage(){
   const logoutBtn=$('logoutBtn');
   if(logoutBtn)logoutBtn.textContent=isZh?'退出':'Logout';
 }
+const brand=document.querySelector('.brand span:last-child');
+if(brand)brand.textContent=isZh?'CS2 预测中心':'CS2 Prediction Center';
+
+const heroTitle=document.querySelector('.hero h1');
+if(heroTitle)heroTitle.textContent=isZh?'预测比赛，赢取积分':'Predict Matches, Earn Points';
+
+const heroText=document.querySelector('.hero p');
+if(heroText)heroText.textContent=isZh
+  ?'真实账号、云端数据库、共享排行榜。当前版本为演示赛事数据，不涉及真钱投注。'
+  :'Real accounts, cloud database, and shared leaderboard. This version uses demo match data and does not involve real-money betting.';
+
+const heroPointsLabel=document.querySelector('.hero-stat span');
+if(heroPointsLabel)heroPointsLabel.textContent=isZh?'我的积分':'My Points';
 const langToggle=$('langToggle');
 applyLanguage();
 if(langToggle){

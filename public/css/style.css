@@ -833,4 +833,40 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   .profile-stats{
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
+}/* Prediction history filters */
+.history-filters{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:14px 18px 10px;
+}
+
+.history-filter{
+  padding:7px 13px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:rgba(255,255,255,.035);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  transition:.2s ease;
+}
+
+.history-filter:hover{
+  color:var(--text);
+  border-color:rgba(91,140,255,.45);
+  background:rgba(91,140,255,.08);
+}
+
+.history-filter.active{
+  color:#fff;
+  border-color:rgba(91,140,255,.65);
+  background:linear-gradient(135deg,#5b8cff,#8b5cf6);
+}
+
+.history-filter:focus-visible{
+  outline:2px solid #8ca5ff;
+  outline-offset:2px;
 }

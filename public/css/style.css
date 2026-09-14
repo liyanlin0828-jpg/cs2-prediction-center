@@ -886,3 +886,40 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
 .history-filters{
   margin-bottom:6px;
 }
+/* Prediction history sort */
+.history-sort{
+  margin-left:auto;
+  padding:7px 30px 7px 13px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:#111827;
+  color:var(--text);
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  outline:none;
+  color-scheme:dark;
+  transition:border-color .2s,background .2s,box-shadow .2s;
+}
+
+.history-sort:hover{
+  border-color:rgba(91,140,255,.45);
+  background:#172033;
+}
+
+.history-sort:focus{
+  border-color:#5b8cff;
+  box-shadow:0 0 0 3px rgba(91,140,255,.12);
+}
+
+.history-sort option{
+  background:#111827;
+  color:#eef3ff;
+}
+
+@media(max-width:620px){
+  .history-sort{
+    width:100%;
+    margin-left:0;
+  }
+}

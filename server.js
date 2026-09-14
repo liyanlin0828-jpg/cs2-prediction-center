@@ -144,24 +144,12 @@ async function syncResults(){
 
     const scoreA=scoreMap.get(String(teams.a.id));
     const scoreB=scoreMap.get(String(teams.b.id));
+    
     if(
-  x.winner_id &&
-  scoreA===0 &&
-  scoreB===0
+  Number.isFinite(scoreA) &&
+  Number.isFinite(scoreB) &&
+  (scoreA>0 || scoreB>0)
 ){
-  console.log(
-    '[Zero score sample]',
-    x.name,
-    {
-      winner_id:x.winner_id,
-      results:x.results,
-      games:x.games,
-      opponents:x.opponents
-    }
-  );
-}
-
-    if(Number.isFinite(scoreA)&&Number.isFinite(scoreB)){
       await pool.query(
         'UPDATE matches SET score_a=$1,score_b=$2 WHERE id=$3',
         [scoreA,scoreB,m.id]

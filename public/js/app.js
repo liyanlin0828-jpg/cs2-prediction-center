@@ -78,6 +78,16 @@ const visibleMatches=searchedMatches.filter(m=>{
   if(state.matchFilter==='predicted')return !!m.user_prediction;
   return true;
 });
+  const sortDirection=$('matchSort')?.value||'asc';
+
+const sortedMatches=[...visibleMatches].sort((a,b)=>{
+  const timeA=new Date(a.starts_at).getTime();
+  const timeB=new Date(b.starts_at).getTime();
+
+  return sortDirection==='desc'
+    ? timeB-timeA
+    : timeA-timeB;
+});
   if(!visibleMatches.length){
   const emptyText=
     state.matchFilter==='pending'
@@ -89,7 +99,7 @@ const visibleMatches=searchedMatches.filter(m=>{
   grid.innerHTML=`<div class="empty">${emptyText}</div>`;
   return;
 }
-  grid.innerHTML=visibleMatches.map(m=>{
+  grid.innerHTML=sortedMatches.map(m=>{
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';
     const sourceClass=m.source==='pandascore'?'':' manual';
     const locked=isPredictionLocked(m.starts_at);
@@ -291,6 +301,12 @@ document.querySelectorAll('.match-filter').forEach(btn=>{
 const matchSearch=$('matchSearch');
 if(matchSearch){
   matchSearch.addEventListener('input',()=>{
+    renderMatches();
+  });
+}
+const matchSort=$('matchSort');
+if(matchSort){
+  matchSort.addEventListener('change',()=>{
     renderMatches();
   });
 }

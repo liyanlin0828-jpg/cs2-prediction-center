@@ -266,11 +266,43 @@ function renderLeaderboard(){
 }
 async function renderProfile(){
   const {predictions}=await api('/predictions/me');
+  
+  const totalPredictions=predictions.length;
+  const winCount=predictions.filter(p=>p.result==='win').length;
+  const lossCount=predictions.filter(p=>p.result==='loss').length;
+  const pendingCount=predictions.filter(p=>!p.result).length;
+  const settledCount=winCount+lossCount;
+  const calculatedWinRate=settledCount
+    ? ((winCount/settledCount)*100).toFixed(1)
+    : '0.0';
+
   $('profileHint').textContent=`${state.me.username} · ${state.me.points} 积分`;
   $('profileCard').innerHTML=`
     <div class="profile-top"><div><h3>${escapeHtml(state.me.username)}</h3>
     <p>积分 ${state.me.points} · ${state.me.win_rate}% 胜率</p></div>
     <div class="profile-badge">${state.me.role==='admin'?'管理员':'玩家'}</div></div>
+    <div class="profile-stats">
+  <div class="profile-stat">
+    <strong>${totalPredictions}</strong>
+    <span>总预测</span>
+  </div>
+  <div class="profile-stat win">
+    <strong>${winCount}</strong>
+    <span>猜中</span>
+  </div>
+  <div class="profile-stat loss">
+    <strong>${lossCount}</strong>
+    <span>猜错</span>
+  </div>
+  <div class="profile-stat pending">
+    <strong>${pendingCount}</strong>
+    <span>待结算</span>
+  </div>
+  <div class="profile-stat rate">
+    <strong>${calculatedWinRate}%</strong>
+    <span>胜率</span>
+  </div>
+</div>
     <div class="history">
   <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
   ${predictions.length?predictions.map(p=>`

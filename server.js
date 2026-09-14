@@ -640,17 +640,36 @@ app.post('/api/admin/sync/all',auth,admin,async(req,res)=>{
 
 /* Auto sync while the instance is awake. Render free instances may sleep when idle. */
 if(PANDA_TOKEN){
-  const run=async()=>{
+const run=async()=>{
+  try{
+    const u=await syncUpcoming();
+    const r=await syncResults();
+
+    console.log('[AutoSync]',{upcoming:u,results:r});
+
+    await saveSyncStatus({
+      status:'success',
+      triggerSource:'render-autosync',
+      upcoming:u,
+      results:r
+    });
+  }catch(e){
+    console.error('[AutoSync error]',e.message);
+
     try{
-      const u=await syncUpcoming();
-      const r=await syncResults();
-      console.log('[AutoSync]',{upcoming:u,results:r});
-    }catch(e){console.error('[AutoSync error]',e.message)}
-  };
-  setTimeout(run,15000);
+      await saveSyncStatus({
+        status:'error',
+        triggerSource:'render-autosync',
+        errorMessage:e.message||String(e)
+      });
+    }catch(statusError){
+      console.error('[SyncStatus error]',statusError);
+    }
+  }
+};
+setTimeout(run,15000);
   setInterval(run,AUTO_SYNC_MINUTES*60*1000);
 }
-
 app.get('/admin',(req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 app.use((req,res)=>res.sendFile(path.join(__dirname,'index.html')));
 app.listen(PORT,()=>console.log(`CS2 Prediction Center V3 running on http://localhost:${PORT}`));

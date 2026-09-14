@@ -198,14 +198,41 @@ app.post('/api/predictions',auth,async(req,res)=>{
   {status:400}
 );
     if(team!==m.team_a&&team!==m.team_b)throw Object.assign(new Error('无效的预测队伍'),{status:400});
-    if((await client.query('SELECT 1 FROM predictions WHERE user_id=$1 AND match_id=$2',[req.user.id,matchId])).rowCount)
-      throw Object.assign(new Error('这场比赛已经预测过了'),{status:409});
-await client.query('INSERT INTO predictions(user_id,match_id,predicted_team) VALUES($1,$2,$3)',[req.user.id,matchId,team]);
+   const existing=(await client.query(
+  'SELECT id,predicted_team,result FROM predictions WHERE user_id=$1 AND match_id=$2 FOR UPDATE',
+  [req.user.id,matchId]
+)).rows[0];
+
+let responseStatus=201;
+let responseMessage=`预测 ${team} 成功，比赛结算后猜中 +50 积分`;
+
+if(existing){
+  if(existing.result){
+    throw Object.assign(new Error('该预测已经结算，不能修改'),{status:409});
+  }
+
+  if(existing.predicted_team===team){
+    throw Object.assign(new Error(`你已经预测了 ${team}`),{status:409});
+  }
+
+  await client.query(
+    'UPDATE predictions SET predicted_team=$1 WHERE id=$2',
+    [team,existing.id]
+  );
+
+  responseStatus=200;
+  responseMessage=`预测已修改为 ${team}，比赛结算后猜中 +50 积分`;
+}else{
+  await client.query(
+    'INSERT INTO predictions(user_id,match_id,predicted_team) VALUES($1,$2,$3)',
+    [req.user.id,matchId,team]
+  );
+}
 const u=(await client.query('SELECT id,username,role,points FROM users WHERE id=$1',[req.user.id])).rows[0];
 await client.query('COMMIT');
-res.status(201).json({
+res.status(responseStatus).json({
   user:u,
-  message:`预测 ${team} 成功，比赛结算后猜中 +50 积分`
+  message:responseMessage
 });
   }catch(e){await client.query('ROLLBACK');res.status(e.status||500).json({message:e.status?e.message:'预测失败'})}
   finally{client.release()}

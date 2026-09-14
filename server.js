@@ -560,8 +560,32 @@ app.post('/api/admin/sync/all',auth,admin,async(req,res)=>{
   try{
     const upcoming=await syncUpcoming();
     const results=await syncResults();
+
+    await saveSyncStatus({
+      status:'success',
+      triggerSource:'admin-all',
+      upcoming,
+      results
+    });
+
     res.json({upcoming,results});
-  }catch(e){console.error(e);res.status(e.status||500).json({message:e.message||'同步失败'})}
+  }catch(e){
+    console.error(e);
+
+    try{
+      await saveSyncStatus({
+        status:'error',
+        triggerSource:'admin-all',
+        errorMessage:e.message||String(e)
+      });
+    }catch(statusError){
+      console.error('[SyncStatus error]',statusError);
+    }
+
+    res.status(e.status||500).json({
+      message:e.message||'同步失败'
+    });
+  }
 });
 
 /* Auto sync while the instance is awake. Render free instances may sleep when idle. */

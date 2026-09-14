@@ -257,9 +257,19 @@ const matchStatus=m.user_prediction
         </button>
       </div>
       <div class="match-footer">
-  <span>猜中奖励：+50</span>
- <span>${m.user_prediction?'已预测：'+escapeHtml(m.user_prediction):(locked?'🔒 已锁盘':'尚未预测')}</span>
-  <button class="match-detail-btn" onclick="event.stopPropagation();openMatchDetail(${m.id})">查看详情 →</button>
+<span>${state.lang==='zh'?'猜中奖励':'Prediction Reward'}：+50</span>
+
+<span>${
+  m.user_prediction
+    ? (state.lang==='zh'?'已预测：':'Predicted: ') + escapeHtml(m.user_prediction)
+    : locked
+      ? (state.lang==='zh'?'🔒 已锁盘':'🔒 Locked')
+      : (state.lang==='zh'?'尚未预测':'Not Predicted')
+}</span>
+
+<button class="match-detail-btn" onclick="event.stopPropagation();openMatchDetail(${m.id})">
+  ${state.lang==='zh'?'查看详情 →':'View Details →'}
+</button>
 </div>
     </article>`;
   }).join('');

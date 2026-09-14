@@ -1,4 +1,4 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc'};
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:''};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
   const headers={'Content-Type':'application/json',...(options.headers||{})};
@@ -281,7 +281,21 @@ const filteredPredictions=predictions.filter(p=>{
   if(state.historyFilter==='loss')return p.result==='loss';
   return true;
 });
-  const sortedPredictions=[...filteredPredictions].sort((a,b)=>{
+  const searchTerm=state.historySearch.trim().toLowerCase();
+
+const searchedPredictions=filteredPredictions.filter(p=>{
+  if(!searchTerm)return true;
+
+  const text=`
+    ${p.team_a||''}
+    ${p.team_b||''}
+    ${p.predicted_team||''}
+    ${p.winner||''}
+  `.toLowerCase();
+
+  return text.includes(searchTerm);
+});
+  const sortedPredictions=[...searchedPredictions].sort((a,b)=>{
   const timeA=new Date(a.created_at).getTime();
   const timeB=new Date(b.created_at).getTime();
 
@@ -318,6 +332,14 @@ const filteredPredictions=predictions.filter(p=>{
 </div>
     <div class="history">
     <div class="history-filters">
+    <input
+  id="historySearch"
+  class="history-search"
+  type="search"
+  placeholder="搜索历史记录..."
+  value="${attr(state.historySearch)}"
+  autocomplete="off"
+>
 <button type="button" class="history-filter ${state.historyFilter==='all'?'active':''}" data-history-filter="all">全部 ${totalPredictions}</button>
 <button type="button" class="history-filter ${state.historyFilter==='pending'?'active':''}" data-history-filter="pending">待结算 ${pendingCount}</button>
 <button type="button" class="history-filter ${state.historyFilter==='win'?'active':''}" data-history-filter="win">猜中 ${winCount}</button>
@@ -353,6 +375,18 @@ if(historySort){
   historySort.onchange=()=>{
     state.historySort=historySort.value||'desc';
     renderProfile();
+  }};
+const historySearch=$('historySearch');
+if(historySearch){
+  historySearch.oninput=()=>{
+    state.historySearch=historySearch.value;
+
+    const term=historySearch.value.trim().toLowerCase();
+
+    $('profileCard').querySelectorAll('.history-row').forEach(row=>{
+      const match=!term||row.textContent.toLowerCase().includes(term);
+      row.style.display=match?'grid':'none';
+    });
   };
 }}
 

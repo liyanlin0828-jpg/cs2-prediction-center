@@ -622,7 +622,46 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   font-weight:800;
 }
 
+.match-detail-card .match-footer{/* Match detail prediction footer */
 .match-detail-card .match-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.match-detail-card .match-footer > span{
+  display:inline-flex;
+  align-items:center;
+  min-height:32px;
+  padding:6px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.match-detail-card .match-footer > span:first-child{
+  color:#6ee7a8;
+  background:rgba(46,204,113,.10);
+  border:1px solid rgba(46,204,113,.22);
+}
+
+.match-detail-card .match-footer > span:last-child{
+  color:var(--muted);
+  background:rgba(255,255,255,.035);
+  border:1px solid var(--border);
+}
+
+@media(max-width:700px){
+  .match-detail-card .match-footer{
+    align-items:stretch;
+  }
+
+  .match-detail-card .match-footer > span{
+    flex:1;
+    justify-content:center;
+  }
+}
   margin-top:22px;
   padding-top:18px;
   border-top:1px solid rgba(255,255,255,.07);

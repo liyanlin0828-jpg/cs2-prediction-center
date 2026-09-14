@@ -35,7 +35,15 @@
       <div><h2>同步真实 CS2 赛事</h2><p>PandaScore Token 只保存在服务器环境变量中。</p></div>
       <div class="sync-actions"><button class="btn btn-primary" id="syncBtn">同步未来赛事</button><button class="btn btn-secondary" id="syncResultsBtn">同步赛果并结算</button><button class="btn btn-secondary" id="syncAllBtn">全部同步</button></div>
     </div>
-    <div id="syncResult" class="admin-note">未执行同步。</div><div class="sync-status"><div class="sync-chip">PandaScore<strong id="pandaConfigured">-</strong></div><div class="sync-chip">已同步赛事<strong id="pandaMatches">0</strong></div><div class="sync-chip">自动同步<strong id="autoSync">-</strong></div></div>
+    <div id="syncResult" class="admin-note">未执行同步。</div><div class="sync-status-panel">
+  <div><span>同步状态</span><strong id="syncStatusValue">—</strong></div>
+  <div><span>最近运行</span><strong id="syncLastRun">—</strong></div>
+  <div><span>最近成功</span><strong id="syncLastSuccess">—</strong></div>
+  <div><span>触发来源</span><strong id="syncTriggerSource">—</strong></div>
+  <div><span>Upcoming</span><strong id="syncUpcomingStats">—</strong></div>
+  <div><span>Results</span><strong id="syncResultsStats">—</strong></div>
+  <div><span>最近错误</span><strong id="syncErrorMessage">无</strong></div>
+</div><div class="sync-status"><div class="sync-chip">PandaScore<strong id="pandaConfigured">-</strong></div><div class="sync-chip">已同步赛事<strong id="pandaMatches">0</strong></div><div class="sync-chip">自动同步<strong id="autoSync">-</strong></div></div>
   </section>
 
   <section class="section admin-panel">

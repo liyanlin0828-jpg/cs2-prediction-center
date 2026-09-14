@@ -36,10 +36,15 @@ function renderMatches(rows){
     <td>${new Date(m.starts_at).toLocaleString('zh-CN')}</td>
     <td>${esc(m.status)}${m.winner?` · ${esc(m.winner)}`:''}</td>
     <td><span class="source-badge">${esc(m.source||'manual')}</span></td>
-    <td><div class="action-row">${m.status==='settled'?'已结算':`
-      <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">${esc(m.team_a)} 胜</button>
-      <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">${esc(m.team_b)} 胜</button>`}
-    </div></td></tr>`).join('');
+    <td><div class="action-row">
+  ${m.status==='settled'?'已结算':`
+    <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">${esc(m.team_a)} 胜</button>
+    <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">${esc(m.team_b)} 胜</button>
+  `}
+  ${m.source==='manual' && m.status!=='settled'
+    ? `<button class="mini-btn" onclick="deleteManualMatch(${m.id})">删除</button>`
+    : ''}
+</div></td></tr>`).join('');
 }
 function renderUsers(rows){$('usersBody').innerHTML=rows.map(u=>`<tr>
   <td>${u.id}</td><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${u.points}</td>
@@ -48,6 +53,19 @@ window.settle=async(id,winner)=>{
   if(!confirm(`确认 ${winner} 获胜并结算积分？`))return;
   try{await api(`/admin/matches/${id}/result`,{method:'POST',body:JSON.stringify({winner})});toast('结算完成');await refreshAll()}
   catch(e){toast(e.message)}
+};window.deleteManualMatch=async(id)=>{
+  if(!confirm('确认删除这场手动比赛吗？删除后无法恢复。'))return;
+
+  try{
+    const data=await api(`/admin/matches/${id}`,{
+      method:'DELETE'
+    });
+
+    toast(data.message||'手动比赛已删除');
+    await refreshAll();
+  }catch(e){
+    toast(e.message);
+  }
 };
 $('matchForm').onsubmit=async e=>{
   e.preventDefault();

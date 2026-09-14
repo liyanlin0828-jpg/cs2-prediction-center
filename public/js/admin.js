@@ -33,7 +33,7 @@ $('syncLastRun').textContent=sync?.last_run_at
 $('syncLastSuccess').textContent=sync?.last_success_at
   ? new Date(sync.last_success_at).toLocaleString()
   : '—';
-  if(sync?.last_success_at){
+ if(sync?.last_success_at){
   const diffMs=Date.now()-new Date(sync.last_success_at).getTime();
   const diffMinutes=Math.max(0,Math.floor(diffMs/60000));
 
@@ -41,17 +41,25 @@ $('syncLastSuccess').textContent=sync?.last_success_at
 
   if(diffMinutes<1){
     ageText='刚刚';
+  }else if(diffMinutes<30){
+    ageText=`${diffMinutes} 分钟前 · 正常`;
   }else if(diffMinutes<60){
-    ageText=`${diffMinutes} 分钟前`;
+    ageText=`${diffMinutes} 分钟前 · ⚠️ 同步延迟`;
   }else if(diffMinutes<1440){
-    ageText=`${Math.floor(diffMinutes/60)} 小时前`;
+    ageText=`${Math.floor(diffMinutes/60)} 小时前 · ❌ 同步异常`;
   }else{
-    ageText=`${Math.floor(diffMinutes/1440)} 天前`;
+    ageText=`${Math.floor(diffMinutes/1440)} 天前 · ❌ 同步异常`;
+  }
+
+  if(sync?.status==='error'){
+    ageText+=` · 最近一次同步失败`;
   }
 
   $('syncSuccessAge').textContent=ageText;
 }else{
-  $('syncSuccessAge').textContent='—';
+  $('syncSuccessAge').textContent=sync?.status==='error'
+    ? '❌ 尚无成功同步'
+    : '—';
 }
 
 $('syncTriggerSource').textContent=sync?.trigger_source||'—';

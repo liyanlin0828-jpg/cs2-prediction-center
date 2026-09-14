@@ -40,6 +40,12 @@
 
   <div class="match-filters">
     <input id="matchSearch" class="match-search" type="search" placeholder="搜索战队或赛事..." autocomplete="off">
+    
+    <select id="matchSort" class="match-sort">
+  <option value="asc">最近开赛</option>
+  <option value="desc">最晚开赛</option>
+</select>
+    
     <button type="button" class="match-filter active" data-filter="all">全部</button>
     <button type="button" class="match-filter" data-filter="pending">未预测</button>
     <button type="button" class="match-filter" data-filter="predicted">已预测</button>

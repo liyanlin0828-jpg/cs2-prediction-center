@@ -18,10 +18,25 @@ function logo(url,name){
 }
 function countdown(iso){
   const d=new Date(iso).getTime()-Date.now();
-  if(d<=0)return '比赛已开始';
-  const h=Math.floor(d/3600000),m=Math.floor((d%3600000)/60000);
-  if(h>=24)return `${Math.floor(h/24)}天 ${h%24}小时`;
-  return `${h}小时 ${m}分`;
+  const isZh=state.lang==='zh';
+
+  if(d<=0)return isZh?'比赛已开始':'Match Started';
+
+  const h=Math.floor(d/3600000);
+  const m=Math.floor((d%3600000)/60000);
+
+  if(h>=24){
+    const days=Math.floor(h/24);
+    const hours=h%24;
+
+    return isZh
+      ? `${days}天 ${hours}小时`
+      : `${days}d ${hours}h`;
+  }
+
+  return isZh
+    ? `${h}小时 ${m}分`
+    : `${h}h ${m}m`;
 }
 function openAuth(mode='login'){
   state.mode=mode;$('authTitle').textContent=mode==='login'?'登录':'注册';

@@ -549,12 +549,62 @@ app.post('/api/cron/sync',async(req,res)=>{
 }
 });
 app.post('/api/admin/sync/pandascore',auth,admin,async(req,res)=>{
-  try{res.json(await syncUpcoming())}
-  catch(e){console.error(e);res.status(e.status||500).json({message:e.message||'同步 PandaScore 失败'})}
+  try{
+    const upcoming=await syncUpcoming();
+
+    await saveSyncStatus({
+      status:'success',
+      triggerSource:'admin-upcoming',
+      upcoming
+    });
+
+    res.json(upcoming);
+  }catch(e){
+    console.error(e);
+
+    try{
+      await saveSyncStatus({
+        status:'error',
+        triggerSource:'admin-upcoming',
+        errorMessage:e.message||String(e)
+      });
+    }catch(statusError){
+      console.error('[SyncStatus error]',statusError);
+    }
+
+    res.status(e.status||500).json({
+      message:e.message||'同步 PandaScore 失败'
+    });
+  }
 });
 app.post('/api/admin/sync/results',auth,admin,async(req,res)=>{
-  try{res.json(await syncResults())}
-  catch(e){console.error(e);res.status(e.status||500).json({message:e.message||'同步比赛结果失败'})}
+  try{
+    const results=await syncResults();
+
+    await saveSyncStatus({
+      status:'success',
+      triggerSource:'admin-results',
+      results
+    });
+
+    res.json(results);
+  }catch(e){
+    console.error(e);
+
+    try{
+      await saveSyncStatus({
+        status:'error',
+        triggerSource:'admin-results',
+        errorMessage:e.message||String(e)
+      });
+    }catch(statusError){
+      console.error('[SyncStatus error]',statusError);
+    }
+
+    res.status(e.status||500).json({
+      message:e.message||'同步比赛结果失败'
+    });
+  }
 });
 app.post('/api/admin/sync/all',auth,admin,async(req,res)=>{
   try{

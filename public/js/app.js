@@ -310,11 +310,10 @@ const filteredPredictions=predictions.filter(p=>{
 </div>
     <div class="history">
     <div class="history-filters">
-  <button type="button" class="history-filter ${state.historyFilter==='all'?'active':''}" data-history-filter="all">全部</button>
-<button type="button" class="history-filter ${state.historyFilter==='pending'?'active':''}" data-history-filter="pending">待结算</button>
-<button type="button" class="history-filter ${state.historyFilter==='win'?'active':''}" data-history-filter="win">猜中</button>
-<button type="button" class="history-filter ${state.historyFilter==='loss'?'active':''}" data-history-filter="loss">猜错</button>
-</div>
+<button type="button" class="history-filter ${state.historyFilter==='all'?'active':''}" data-history-filter="all">全部 ${totalPredictions}</button>
+<button type="button" class="history-filter ${state.historyFilter==='pending'?'active':''}" data-history-filter="pending">待结算 ${pendingCount}</button>
+<button type="button" class="history-filter ${state.historyFilter==='win'?'active':''}" data-history-filter="win">猜中 ${winCount}</button>
+<button type="button" class="history-filter ${state.historyFilter==='loss'?'active':''}" data-history-filter="loss">猜错 ${lossCount}</button>
   <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
   ${filteredPredictions.length?filteredPredictions.map(p=>`
       <div class="history-row"><span>${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}</span>

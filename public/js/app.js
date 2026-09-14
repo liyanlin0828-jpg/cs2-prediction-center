@@ -362,6 +362,9 @@ const searchedPredictions=filteredPredictions.filter(p=>{
 }</span></div>
       `).join('')
   :`<div class="empty">当前筛选下没有预测记录。</div>`}
+<div id="historySearchEmpty" class="empty hidden">
+  🔍 没有找到匹配的预测记录
+</div>
 </div>`;
 
 $('profileCard').querySelectorAll('.history-filter').forEach(btn=>{
@@ -382,14 +385,26 @@ if(historySearch){
     state.historySearch=historySearch.value;
 
     const term=historySearch.value.trim().toLowerCase();
+    const rows=[...$('profileCard').querySelectorAll('.history-row')];
+    let visibleCount=0;
 
-    $('profileCard').querySelectorAll('.history-row').forEach(row=>{
+    rows.forEach(row=>{
       const match=!term||row.textContent.toLowerCase().includes(term);
       row.style.display=match?'grid':'none';
-    });
-  };
-}}
 
+      if(match)visibleCount++;
+    });
+
+    const searchEmpty=$('historySearchEmpty');
+    if(searchEmpty){
+      searchEmpty.classList.toggle(
+        'hidden',
+        !term||visibleCount>0
+      );
+    }
+  };
+}
+}
 $('loginBtn').onclick=()=>openAuth('login');
 $('logoutBtn').onclick=()=>logout(true);
 $('closeModal').onclick=closeAuth;

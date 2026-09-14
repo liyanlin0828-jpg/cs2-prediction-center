@@ -22,7 +22,29 @@ async function refreshAll(){
     fetch('/api/health').then(r=>r.json()).catch(()=>({ok:false}))
   ]);
   $('usersCount').textContent=stats.users;$('matchesCount').textContent=stats.matches;
-  $('openCount').textContent=stats.open_matches;$('predictionsCount').textContent=stats.predictions;
+  $('openCount').textContent=stats.open_matches;$('predictionsCount').textContent=stats.predictions;const sync=stats.sync_status;
+
+$('syncStatusValue').textContent=sync?.status||'never';
+
+$('syncLastRun').textContent=sync?.last_run_at
+  ? new Date(sync.last_run_at).toLocaleString()
+  : '—';
+
+$('syncLastSuccess').textContent=sync?.last_success_at
+  ? new Date(sync.last_success_at).toLocaleString()
+  : '—';
+
+$('syncTriggerSource').textContent=sync?.trigger_source||'—';
+
+$('syncUpcomingStats').textContent=sync
+  ? `拉取 ${sync.upcoming_fetched} · 新增 ${sync.upcoming_inserted} · 更新 ${sync.upcoming_updated} · 跳过 ${sync.upcoming_skipped}`
+  : '—';
+
+$('syncResultsStats').textContent=sync
+  ? `拉取 ${sync.results_fetched} · 检查 ${sync.results_checked} · 结算 ${sync.results_settled} · 跳过 ${sync.results_skipped}`
+  : '—';
+
+$('syncErrorMessage').textContent=sync?.error_message||'无';
   $('apiStatus').textContent=health.ok?'系统正常':'系统异常';
   $('pandaConfigured').textContent=stats.pandascore_configured?'已连接':'未配置';
   $('pandaMatches').textContent=stats.pandascore_matches||0;

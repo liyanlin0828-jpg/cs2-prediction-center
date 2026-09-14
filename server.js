@@ -113,40 +113,74 @@ const isWin=p.predicted_team===winner,delta=isWin?50:0,result=isWin?'win':'loss'
 
 async function syncResults(){
   const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
- const scoreSample=items.find(x=>
-  Array.isArray(x.results) &&
-  x.results.length>=2 &&
-  x.results.some(r=>Number(r.score)>0)
-);
-
-console.log(
-  '[Score sample]',
-  scoreSample?.name,
-  scoreSample?.results,
-  scoreSample?.opponents?.map(o=>({
-    id:o.opponent?.id,
-    name:o.opponent?.name
-  }))
-);
   let checked=0,settled=0,skipped=0;
+
   const local=(await pool.query(`
-    SELECT id,external_id,status FROM matches
-    WHERE source='pandascore' AND external_id IS NOT NULL AND status<>'settled'
+    SELECT id,external_id,status
+    FROM matches
+    WHERE source='pandascore'
+      AND external_id IS NOT NULL
   `)).rows;
+
   const map=new Map(local.map(m=>[String(m.external_id),m]));
+
   for(const x of items){
     const m=map.get(String(x.id));
     if(!m)continue;
+
     checked++;
-    if(!x.winner_id){skipped++;continue}
+
     const teams=normalizedOpponents(x);
-    if(!teams){skipped++;continue}
-    const winnerTeam=[teams.a,teams.b].find(t=>String(t.id)===String(x.winner_id));
-    if(!winnerTeam){skipped++;continue}
+    if(!teams){
+      skipped++;
+      continue;
+    }
+
+    const scoreMap=new Map(
+      Array.isArray(x.results)
+        ? x.results.map(r=>[String(r.team_id),Number(r.score)])
+        : []
+    );
+
+    const scoreA=scoreMap.get(String(teams.a.id));
+    const scoreB=scoreMap.get(String(teams.b.id));
+
+    if(Number.isFinite(scoreA)&&Number.isFinite(scoreB)){
+      await pool.query(
+        'UPDATE matches SET score_a=$1,score_b=$2 WHERE id=$3',
+        [scoreA,scoreB,m.id]
+      );
+    }
+
+    if(m.status==='settled')continue;
+
+    if(!x.winner_id){
+      skipped++;
+      continue;
+    }
+
+    const winnerTeam=[teams.a,teams.b].find(
+      t=>String(t.id)===String(x.winner_id)
+    );
+
+    if(!winnerTeam){
+      skipped++;
+      continue;
+    }
+
     const result=await settleMatch(m.id,winnerTeam.name);
-    if(!result.alreadySettled)settled++;
+
+    if(!result.alreadySettled){
+      settled++;
+    }
   }
-  return {fetched:items.length,checked,settled,skipped};
+
+  return {
+    fetched:items.length,
+    checked,
+    settled,
+    skipped
+  };
 }
 
 app.get('/api/health',async(req,res)=>{
@@ -204,6 +238,8 @@ app.get('/api/results',async(req,res)=>{
         team_a_logo,
         team_b_logo,
         winner,
+        score_a,
+        score_b,
         starts_at,
         source,
         number_of_games

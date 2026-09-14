@@ -1,4 +1,4 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all'};
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc'};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
   const headers={'Content-Type':'application/json',...(options.headers||{})};
@@ -281,6 +281,14 @@ const filteredPredictions=predictions.filter(p=>{
   if(state.historyFilter==='loss')return p.result==='loss';
   return true;
 });
+  const sortedPredictions=[...filteredPredictions].sort((a,b)=>{
+  const timeA=new Date(a.created_at).getTime();
+  const timeB=new Date(b.created_at).getTime();
+
+  return state.historySort==='asc'
+    ? timeA-timeB
+    : timeB-timeA;
+});
   $('profileHint').textContent=`${state.me.username} · ${state.me.points} 积分`;
   $('profileCard').innerHTML=`
     <div class="profile-top"><div><h3>${escapeHtml(state.me.username)}</h3>
@@ -314,8 +322,14 @@ const filteredPredictions=predictions.filter(p=>{
 <button type="button" class="history-filter ${state.historyFilter==='pending'?'active':''}" data-history-filter="pending">待结算 ${pendingCount}</button>
 <button type="button" class="history-filter ${state.historyFilter==='win'?'active':''}" data-history-filter="win">猜中 ${winCount}</button>
 <button type="button" class="history-filter ${state.historyFilter==='loss'?'active':''}" data-history-filter="loss">猜错 ${lossCount}</button>
+
+<select class="history-sort" id="historySort">
+  <option value="desc" ${state.historySort==='desc'?'selected':''}>最新预测</option>
+  <option value="asc" ${state.historySort==='asc'?'selected':''}>最早预测</option>
+</select>
+</div>
   <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
-  ${filteredPredictions.length?filteredPredictions.map(p=>`
+  ${sortedPredictions.length?sortedPredictions.map(p=>`
       <div class="history-row"><span>${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}</span>
      <span>预测：${escapeHtml(p.predicted_team)}${p.winner?' · 获胜：'+escapeHtml(p.winner):''}${p.created_at?' · 预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}</span>
 <span class="prediction-status ${p.result==='win'?'win':p.result==='loss'?'loss':'pending'}">${p.result==='win'
@@ -334,7 +348,13 @@ $('profileCard').querySelectorAll('.history-filter').forEach(btn=>{
     renderProfile();
   };
 });
-}
+const historySort=$('historySort');
+if(historySort){
+  historySort.onchange=()=>{
+    state.historySort=historySort.value||'desc';
+    renderProfile();
+  };
+}}
 
 $('loginBtn').onclick=()=>openAuth('login');
 $('logoutBtn').onclick=()=>logout(true);

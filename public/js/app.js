@@ -371,16 +371,29 @@ const pagedPredictions=sortedPredictions.slice(
 </select>
 </div>
   <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
-  ${pagedPredictions.length?pagedPredictions.map(p=>`
-      <div class="history-row"><span>${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}</span>
-     <span>预测：${escapeHtml(p.predicted_team)}${p.winner?' · 获胜：'+escapeHtml(p.winner):''}${p.created_at?' · 预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}</span>
-<span class="prediction-status ${p.result==='win'?'win':p.result==='loss'?'loss':'pending'}">${p.result==='win'
-  ? '✅ 猜中 +'+Number(p.points_delta||0)+' 积分'
-  : p.result==='loss'
-    ? '❌ 猜错 +'+Number(p.points_delta||0)+' 积分'
-    : '⏳ 待结算'
-}</span></div>
-      `).join('')
+ ${pagedPredictions.length?pagedPredictions.map(p=>`
+  <div class="history-row">
+    <span>
+      ${escapeHtml(p.event_name||'CS2 比赛')}<br>
+      ${escapeHtml(p.team_a)} vs ${escapeHtml(p.team_b)}
+    </span>
+
+    <span>
+      你的预测：${escapeHtml(p.predicted_team)}<br>
+      实际胜者：${p.winner?escapeHtml(p.winner):'待公布'}
+      ${p.created_at?'<br>预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}
+    </span>
+
+    <span class="prediction-status ${p.result==='win'?'win':p.result==='loss'?'loss':'pending'}">
+      ${p.result==='win'
+        ? '✅ 猜中 +'+Number(p.points_delta||0)+' 积分'
+        : p.result==='loss'
+        ? '❌ 猜错 +'+Number(p.points_delta||0)+' 积分'
+        : '⏳ 待结算'
+      }
+    </span>
+  </div>
+`).join('')
   : `<div class="empty">${
       state.historySearch.trim()
         ? '🔍 没有找到匹配的预测记录'

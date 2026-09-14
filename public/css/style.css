@@ -1079,3 +1079,12 @@ input.history-search{
     padding:7px 10px;
   }
 }
+#matchDetail{
+  scroll-margin-top:90px;
+}
+
+@media(max-width:700px){
+  #matchDetail{
+    scroll-margin-top:135px;
+  }
+}

@@ -54,19 +54,26 @@ function renderMatches(){
   const upcomingMatches=state.matches.filter(
   m=>new Date(m.starts_at).getTime()>Date.now()
 );
+const searchTerm=($('matchSearch')?.value||'').trim().toLowerCase();
 
-const predictedCount=upcomingMatches.filter(m=>!!m.user_prediction).length;
-const pendingCount=upcomingMatches.length-predictedCount;
+const searchedMatches=upcomingMatches.filter(m=>{
+  if(!searchTerm)return true;
+
+  const text=`${m.event_name||''} ${m.team_a||''} ${m.team_b||''}`.toLowerCase();
+  return text.includes(searchTerm);
+});
+const predictedCount=searchedMatches.filter(m=>!!m.user_prediction).length;
+const pendingCount=searchedMatches.length-predictedCount;
 
 const allBtn=document.querySelector('.match-filter[data-filter="all"]');
 const pendingBtn=document.querySelector('.match-filter[data-filter="pending"]');
 const predictedBtn=document.querySelector('.match-filter[data-filter="predicted"]');
 
-if(allBtn)allBtn.textContent=`全部 ${upcomingMatches.length}`;
+if(allBtn)allBtn.textContent=`全部 ${searchedMatches.length}`;
 if(pendingBtn)pendingBtn.textContent=`未预测 ${pendingCount}`;
 if(predictedBtn)predictedBtn.textContent=`已预测 ${predictedCount}`;
 
-const visibleMatches=upcomingMatches.filter(m=>{
+const visibleMatches=searchedMatches.filter(m=>{
   if(state.matchFilter==='pending')return !m.user_prediction;
   if(state.matchFilter==='predicted')return !!m.user_prediction;
   return true;
@@ -281,6 +288,12 @@ document.querySelectorAll('.match-filter').forEach(btn=>{
     renderMatches();
   };
 });
+const matchSearch=$('matchSearch');
+if(matchSearch){
+  matchSearch.addEventListener('input',()=>{
+    renderMatches();
+  });
+}
 window.addEventListener('load',async()=>{
   try{await loadAll();setInterval(async()=>{
   try{

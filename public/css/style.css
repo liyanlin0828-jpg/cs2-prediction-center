@@ -596,6 +596,31 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
 .match-detail-card .team strong{
   font-size:20px;
 }
+/* Match detail team identity */
+.match-detail-card .team-logo{
+  width:64px;
+  height:64px;
+  padding:8px;
+  border-radius:16px;
+  object-fit:contain;
+  background:rgba(255,255,255,.04);
+}
+
+.match-detail-card .team strong{
+  margin-top:8px;
+  font-size:21px;
+  line-height:1.2;
+}
+
+.match-detail-card .team > span:last-child{
+  margin-top:6px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:rgba(91,140,255,.10);
+  color:#9eb9ff;
+  font-size:13px;
+  font-weight:800;
+}
 
 .match-detail-card .match-footer{
   margin-top:22px;

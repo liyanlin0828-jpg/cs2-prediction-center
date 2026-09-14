@@ -507,6 +507,12 @@ app.post('/api/cron/sync',async(req,res)=>{
     const results=await syncResults();
 
     console.log('[CronSync]',{upcoming,results});
+    await saveSyncStatus({
+  status:'success',
+  triggerSource:'github-cron',
+  upcoming,
+  results
+});
 
     res.json({
       ok:true,
@@ -514,9 +520,20 @@ app.post('/api/cron/sync',async(req,res)=>{
       results
     });
   }catch(e){
-    console.error('[CronSync error]',e);
-    res.status(500).json({message:'同步失败'});
+  console.error('[CronSync error]',e);
+
+  try{
+    await saveSyncStatus({
+      status:'error',
+      triggerSource:'github-cron',
+      errorMessage:e.message||String(e)
+    });
+  }catch(statusError){
+    console.error('[SyncStatus error]',statusError);
   }
+
+  res.status(500).json({message:'同步失败'});
+}
 });
 app.post('/api/admin/sync/pandascore',auth,admin,async(req,res)=>{
   try{res.json(await syncUpcoming())}

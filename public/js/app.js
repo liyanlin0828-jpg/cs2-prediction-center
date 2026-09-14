@@ -1,5 +1,5 @@
 const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],results:[],resultsExpanded:false,mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
-historyPageSize:10};
+historyPageSize:10,lang:localStorage.getItem('cs2_lang')||'zh',};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
   const headers={'Content-Type':'application/json',...(options.headers||{})};
@@ -619,3 +619,14 @@ window.addEventListener('load',async()=>{
   }
 },60000)}catch(e){toast(e.message)}
 });
+const langToggle=$('langToggle');
+
+if(langToggle){
+  langToggle.textContent=state.lang==='zh'?'EN':'中文';
+
+  langToggle.addEventListener('click',()=>{
+    state.lang=state.lang==='zh'?'en':'zh';
+    localStorage.setItem('cs2_lang',state.lang);
+    location.reload();
+  });
+}

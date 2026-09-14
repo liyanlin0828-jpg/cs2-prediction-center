@@ -1,4 +1,4 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],results:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],results:[],resultsExpanded:false,mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
 historyPageSize:10};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
@@ -64,7 +64,11 @@ function renderResults(){
     return;
   }
 
-  grid.innerHTML=state.results.map(m=>{
+  const visibleResults=state.resultsExpanded
+  ? state.results
+  : state.results.slice(0,6);
+
+grid.innerHTML=visibleResults.map(m=>{
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';
     const sourceClass=m.source==='pandascore'?'':' manual';
     const teamAWin=m.winner===m.team_a;
@@ -108,7 +112,35 @@ function renderResults(){
         <span>已结算</span>
       </div>
     </article>`;
-  }).join('');
+}).join('');
+
+if(state.results.length>6){
+  grid.insertAdjacentHTML('beforeend',`
+    <div class="results-more">
+      <button type="button" class="btn btn-secondary" id="resultsToggleBtn">
+        ${state.resultsExpanded
+          ? '收起赛果 ↑'
+          : `查看更多赛果（还有 ${state.results.length-6} 场）↓`
+        }
+      </button>
+    </div>
+  `);
+
+  const toggleBtn=$('resultsToggleBtn');
+  if(toggleBtn){
+    toggleBtn.onclick=()=>{
+      state.resultsExpanded=!state.resultsExpanded;
+      renderResults();
+
+      if(!state.resultsExpanded){
+        $('results').scrollIntoView({
+          behavior:'smooth',
+          block:'start'
+        });
+      }
+    };
+  }
+}
 }
 function isPredictionLocked(iso){
   return new Date(iso).getTime()-Date.now()<=10*60*1000;

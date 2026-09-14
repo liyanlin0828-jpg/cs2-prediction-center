@@ -73,7 +73,30 @@ $('syncResultsStats').textContent=sync
   : '—';
 
 $('syncErrorMessage').textContent=sync?.error_message||'无';
-  $('apiStatus').textContent=health.ok?'系统正常':'系统异常';
+  let systemStatus='系统正常';
+
+if(!health.ok){
+  systemStatus='系统异常';
+}else if(sync?.status==='error'){
+  systemStatus='同步异常';
+}else if(sync?.last_success_at){
+  const syncAgeMinutes=Math.max(
+    0,
+    Math.floor(
+      (Date.now()-new Date(sync.last_success_at).getTime())/60000
+    )
+  );
+
+  if(syncAgeMinutes>=60){
+    systemStatus='同步异常';
+  }else if(syncAgeMinutes>=30){
+    systemStatus='同步延迟';
+  }
+}else{
+  systemStatus='同步未运行';
+}
+
+$('apiStatus').textContent=systemStatus;
   $('pandaConfigured').textContent=stats.pandascore_configured?'已连接':'未配置';
   $('pandaMatches').textContent=stats.pandascore_matches||0;
   $('autoSync').textContent=stats.pandascore_configured?`${stats.auto_sync_minutes} 分钟`:'关闭';

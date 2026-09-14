@@ -188,9 +188,23 @@ const allBtn=document.querySelector('.match-filter[data-filter="all"]');
 const pendingBtn=document.querySelector('.match-filter[data-filter="pending"]');
 const predictedBtn=document.querySelector('.match-filter[data-filter="predicted"]');
 
-if(allBtn)allBtn.textContent=`全部 ${searchedMatches.length}`;
-if(pendingBtn)pendingBtn.textContent=`未预测 ${pendingCount}`;
-if(predictedBtn)predictedBtn.textContent=`已预测 ${predictedCount}`;
+if(allBtn){
+  allBtn.textContent=state.lang==='zh'
+    ? `全部 ${searchedMatches.length}`
+    : `All ${searchedMatches.length}`;
+}
+
+if(pendingBtn){
+  pendingBtn.textContent=state.lang==='zh'
+    ? `未预测 ${pendingCount}`
+    : `Not Predicted ${pendingCount}`;
+}
+
+if(predictedBtn){
+  predictedBtn.textContent=state.lang==='zh'
+    ? `已预测 ${predictedCount}`
+    : `Predicted ${predictedCount}`;
+}
 
 const visibleMatches=searchedMatches.filter(m=>{
   if(state.matchFilter==='pending')return !m.user_prediction;

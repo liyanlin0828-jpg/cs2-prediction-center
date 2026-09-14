@@ -380,8 +380,21 @@ app.get('/api/admin/stats',auth,admin,async(req,res)=>{
     (SELECT COUNT(*)::int FROM matches) matches,
     (SELECT COUNT(*)::int FROM matches WHERE status='open') open_matches,
     (SELECT COUNT(*)::int FROM predictions) predictions,
-    (SELECT COUNT(*)::int FROM matches WHERE source='pandascore') pandascore_matches`);
-  res.json({...r.rows[0],pandascore_configured:!!PANDA_TOKEN,auto_sync_minutes:AUTO_SYNC_MINUTES});
+    (SELECT COUNT(*)::int FROM matches WHERE source='pandascore') pandascore_matches
+  `);
+
+  const sync=(await pool.query(`
+    SELECT *
+    FROM sync_status
+    WHERE id=1
+  `)).rows[0]||null;
+
+  res.json({
+    ...r.rows[0],
+    pandascore_configured:!!PANDA_TOKEN,
+    auto_sync_minutes:AUTO_SYNC_MINUTES,
+    sync_status:sync
+  });
 });
 app.get('/api/admin/users',auth,admin,async(req,res)=>{
   const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.created_at,COUNT(p.id)::int predictions

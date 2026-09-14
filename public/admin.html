@@ -47,7 +47,36 @@
 </div><div class="sync-status"><div class="sync-chip">PandaScore<strong id="pandaConfigured">-</strong></div><div class="sync-chip">已同步赛事<strong id="pandaMatches">0</strong></div><div class="sync-chip">自动同步<strong id="autoSync">-</strong></div></div>
   </section>
 
-  <section class="section admin-panel">
+<section class="section admin-panel">
+  <div class="section-head">
+    <div>
+      <h2>同步历史</h2>
+      <p>最近 50 次同步记录。</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>时间</th>
+          <th>来源</th>
+          <th>状态</th>
+          <th>Upcoming</th>
+          <th>Results</th>
+          <th>错误</th>
+        </tr>
+      </thead>
+      <tbody id="syncHistoryBody">
+        <tr>
+          <td colspan="6">暂无同步历史</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section> 
+<section class="section admin-panel">
+    
     <div class="section-head"><div><h2>添加比赛</h2><p>也可以手动创建赛事。</p></div></div>
     <form id="matchForm" class="admin-form">
       <label>赛事名称<input id="eventName" required placeholder="例如 IEM Cologne"></label>

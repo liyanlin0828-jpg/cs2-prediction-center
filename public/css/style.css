@@ -923,3 +923,41 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
     margin-left:0;
   }
 }
+/* Prediction history search */
+.history-search{
+  min-width:210px;
+  padding:7px 13px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:#111827;
+  color:var(--text);
+  font-size:12px;
+  font-weight:600;
+  outline:none;
+  transition:border-color .2s,background .2s,box-shadow .2s;
+}
+
+.history-search::placeholder{
+  color:var(--muted);
+}
+
+.history-search:hover{
+  border-color:rgba(91,140,255,.45);
+  background:#172033;
+}
+
+.history-search:focus{
+  border-color:#5b8cff;
+  box-shadow:0 0 0 3px rgba(91,140,255,.12);
+}
+
+.history-search::-webkit-search-cancel-button{
+  cursor:pointer;
+}
+
+@media(max-width:620px){
+  .history-search{
+    width:100%;
+    min-width:0;
+  }
+}

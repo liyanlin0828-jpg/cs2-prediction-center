@@ -113,7 +113,21 @@ const isWin=p.predicted_team===winner,delta=isWin?50:0,result=isWin?'win':'loss'
 
 async function syncResults(){
   const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
-  console.log('[Score sample]',items[0]?.results,items[0]?.games);
+ const scoreSample=items.find(x=>
+  Array.isArray(x.results) &&
+  x.results.length>=2 &&
+  x.results.some(r=>Number(r.score)>0)
+);
+
+console.log(
+  '[Score sample]',
+  scoreSample?.name,
+  scoreSample?.results,
+  scoreSample?.opponents?.map(o=>({
+    id:o.opponent?.id,
+    name:o.opponent?.name
+  }))
+);
   let checked=0,settled=0,skipped=0;
   const local=(await pool.query(`
     SELECT id,external_id,status FROM matches

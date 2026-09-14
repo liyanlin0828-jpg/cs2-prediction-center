@@ -93,12 +93,20 @@ grid.innerHTML=visibleResults.map(m=>{
         </div>
 
         <div class="vs">
-          VS
-          ${m.number_of_games
-            ? `<div class="match-format">BO${Number(m.number_of_games)}</div>`
-            : ''
-          }
-        </div>
+  ${
+    Number.isFinite(Number(m.score_a)) &&
+    Number.isFinite(Number(m.score_b)) &&
+    m.score_a !== null &&
+    m.score_b !== null
+      ? `<strong>${Number(m.score_a)} : ${Number(m.score_b)}</strong>`
+      : 'VS'
+  }
+  ${
+    m.number_of_games
+      ? `<div class="match-format">BO${Number(m.number_of_games)}</div>`
+      : ''
+  }
+</div>
 
         <div class="team ${teamBWin?'selected':''}">
           ${logo(m.team_b_logo,m.team_b)}

@@ -651,6 +651,21 @@ if(heroText)heroText.textContent=isZh
 
 const heroPointsLabel=document.querySelector('.hero-stat span');
 if(heroPointsLabel)heroPointsLabel.textContent=isZh?'我的积分':'My Points';
+const matchesTitle=document.querySelector('#matches h2');
+if(matchesTitle)matchesTitle.textContent=isZh?'🔥 热门比赛':'🔥 Featured Matches';
+
+const matchesSubtitle=document.querySelector('#matches .section-head p');
+if(matchesSubtitle)matchesSubtitle.textContent=isZh
+  ?'选择你认为会获胜的战队'
+  :'Choose the team you think will win';
+
+const matchSearch=$('matchSearch');
+if(matchSearch)matchSearch.placeholder=isZh?'搜索战队或赛事...':'Search teams or events...';
+
+const matchSort=$('matchSort');
+if(matchSort && matchSort.options.length){
+  matchSort.options[0].textContent=isZh?'最近开赛':'Starting Soon';
+}
 }
 const langToggle=$('langToggle');
 applyLanguage();

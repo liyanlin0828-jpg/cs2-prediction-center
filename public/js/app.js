@@ -636,8 +636,8 @@ function applyLanguage(){
   if(loginBtn)loginBtn.textContent=isZh?'登录 / 注册':'Login / Register';
 
   const logoutBtn=$('logoutBtn');
-  if(logoutBtn)logoutBtn.textContent=isZh?'退出':'Logout';
-}
+if(logoutBtn)logoutBtn.textContent=isZh?'退出':'Logout';
+
 const brand=document.querySelector('.brand span:last-child');
 if(brand)brand.textContent=isZh?'CS2 预测中心':'CS2 Prediction Center';
 
@@ -651,6 +651,7 @@ if(heroText)heroText.textContent=isZh
 
 const heroPointsLabel=document.querySelector('.hero-stat span');
 if(heroPointsLabel)heroPointsLabel.textContent=isZh?'我的积分':'My Points';
+}
 const langToggle=$('langToggle');
 applyLanguage();
 if(langToggle){

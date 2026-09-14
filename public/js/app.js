@@ -1,5 +1,5 @@
 const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
-historyPageSize:10};
+historyPageSize:2};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
   const headers={'Content-Type':'application/json',...(options.headers||{})};

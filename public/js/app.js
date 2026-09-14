@@ -619,8 +619,27 @@ window.addEventListener('load',async()=>{
   }
 },60000)}catch(e){toast(e.message)}
 });
-const langToggle=$('langToggle');
+function applyLanguage(){
+  const isZh=state.lang==='zh';
 
+  document.documentElement.lang=isZh?'zh-CN':'en';
+
+  const navLinks=document.querySelectorAll('nav a');
+  if(navLinks[0])navLinks[0].textContent=isZh?'赛事':'Matches';
+  if(navLinks[1])navLinks[1].textContent=isZh?'排行榜':'Leaderboard';
+  if(navLinks[2])navLinks[2].textContent=isZh?'个人中心':'Profile';
+
+  const adminLink=$('adminLink');
+  if(adminLink)adminLink.textContent=isZh?'管理后台':'Admin';
+
+  const loginBtn=$('loginBtn');
+  if(loginBtn)loginBtn.textContent=isZh?'登录 / 注册':'Login / Register';
+
+  const logoutBtn=$('logoutBtn');
+  if(logoutBtn)logoutBtn.textContent=isZh?'退出':'Logout';
+}
+const langToggle=$('langToggle');
+applyLanguage();
 if(langToggle){
   langToggle.textContent=state.lang==='zh'?'EN':'中文';
 

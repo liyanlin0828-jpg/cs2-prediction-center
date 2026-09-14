@@ -870,3 +870,19 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   outline:2px solid #8ca5ff;
   outline-offset:2px;
 }
+/* Keep prediction history in vertical blocks */
+.history{
+  display:block;
+  width:100%;
+}
+
+.history-filters,
+.history-head,
+.history-row{
+  width:100%;
+  box-sizing:border-box;
+}
+
+.history-filters{
+  margin-bottom:6px;
+}

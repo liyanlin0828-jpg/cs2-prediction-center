@@ -178,6 +178,33 @@ app.get('/api/matches',async(req,res)=>{
     ORDER BY m.starts_at LIMIT 100`,[userId]);
   res.json({matches:r.rows});
 });
+app.get('/api/results',async(req,res)=>{
+  try{
+    const r=await pool.query(`
+      SELECT
+        id,
+        event_name,
+        team_a,
+        team_b,
+        team_a_logo,
+        team_b_logo,
+        winner,
+        starts_at,
+        source,
+        number_of_games
+      FROM matches
+      WHERE status='settled'
+        AND winner IS NOT NULL
+      ORDER BY starts_at DESC
+      LIMIT 20
+    `);
+
+    res.json({results:r.rows});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({message:'获取最近赛果失败'});
+  }
+});
 app.get('/api/leaderboard',async(req,res)=>{
   const r=await pool.query(`SELECT u.username,u.points,COUNT(p.id)::int AS predictions,
     COALESCE(ROUND(100.0*COUNT(p.id) FILTER(WHERE p.result='win')/NULLIF(COUNT(p.id) FILTER(WHERE p.result IS NOT NULL),0),1),0) AS win_rate

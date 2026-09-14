@@ -64,7 +64,7 @@ if(detail&&!detail.classList.contains('hidden')&&detail.dataset.matchId){
 }
 function renderUser(){
   $('loginBtn').classList.toggle('hidden',!!state.me);
-  $('logoutBtn').classList.toggle('hidden',!state.me);
+  $('logoutBtn').hidden=!state.me;
   $('heroPoints').textContent=state.me?state.me.points:'0';
   $('adminLink').classList.toggle('hidden',!(state.me&&state.me.role==='admin'));
 }

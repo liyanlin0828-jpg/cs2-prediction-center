@@ -775,3 +775,62 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
     width:100%;
   }
 }
+/* Profile statistics */
+.profile-stats{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;
+  margin:18px 0 22px;
+}
+
+.profile-stat{
+  min-height:88px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:14px 10px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:rgba(255,255,255,.025);
+}
+
+.profile-stat strong{
+  font-size:24px;
+  line-height:1;
+  color:var(--text);
+}
+
+.profile-stat span{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.profile-stat.win strong{
+  color:#6ee7a8;
+}
+
+.profile-stat.loss strong{
+  color:#ff8f9b;
+}
+
+.profile-stat.pending strong{
+  color:#f6c86b;
+}
+
+.profile-stat.rate strong{
+  color:#8cafff;
+}
+
+@media(max-width:900px){
+  .profile-stats{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media(max-width:620px){
+  .profile-stats{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}

@@ -430,6 +430,34 @@ app.get('/api/admin/stats',auth,admin,async(req,res)=>{
     sync_status:sync
   });
 });
+app.get('/api/admin/sync-history',auth,admin,async(req,res)=>{
+  try{
+    const r=await pool.query(`
+      SELECT
+        id,
+        created_at,
+        status,
+        trigger_source,
+        upcoming_fetched,
+        upcoming_inserted,
+        upcoming_updated,
+        upcoming_skipped,
+        results_fetched,
+        results_checked,
+        results_settled,
+        results_skipped,
+        error_message
+      FROM sync_history
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
+
+    res.json({history:r.rows});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({message:'获取同步历史失败'});
+  }
+});
 app.get('/api/admin/users',auth,admin,async(req,res)=>{
   const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.created_at,COUNT(p.id)::int predictions
     FROM users u LEFT JOIN predictions p ON p.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 500`);

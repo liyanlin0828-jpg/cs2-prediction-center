@@ -539,7 +539,29 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   margin-top:18px;
   gap:18px;
 }
+/* Match detail VS area */
+.match-detail-card .vs{
+  min-width:88px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  font-size:20px;
+  font-weight:900;
+  color:var(--text);
+}
 
+.match-detail-card .match-format{
+  padding:5px 10px;
+  border:1px solid rgba(91,140,255,.35);
+  border-radius:999px;
+  background:rgba(91,140,255,.10);
+  color:#9eb9ff;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.5px;
+}
 .match-detail-card .team{
   min-height:150px;
   border-radius:18px;
@@ -552,11 +574,6 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
 
 .match-detail-card .team strong{
   font-size:20px;
-}
-
-.match-detail-card .vs{
-  min-width:72px;
-  font-size:14px;
 }
 
 .match-detail-card .match-footer{

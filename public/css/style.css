@@ -622,8 +622,11 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
   font-weight:800;
 }
 
-.match-detail-card .match-footer{/* Match detail prediction footer */
+/* Match detail prediction footer */
 .match-detail-card .match-footer{
+  margin-top:22px;
+  padding-top:18px;
+  border-top:1px solid rgba(255,255,255,.07);
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -661,10 +664,6 @@ tbody tr:hover td{background:rgba(255,255,255,.018)}
     flex:1;
     justify-content:center;
   }
-}
-  margin-top:22px;
-  padding-top:18px;
-  border-top:1px solid rgba(255,255,255,.07);
 }
 
 @media(max-width:700px){

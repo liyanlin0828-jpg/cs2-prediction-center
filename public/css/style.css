@@ -969,4 +969,50 @@ input.history-search{
   color:var(--text);
   border:1px solid var(--border);
   color-scheme:dark;
+}/* Prediction history pagination */
+.history-pagination{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:18px 12px 4px;
+}
+.history-page-btn{
+  padding:7px 14px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:#111827;
+  color:var(--text);
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  transition:border-color .2s,background .2s,opacity .2s;
+}
+
+.history-page-btn:hover:not(:disabled){
+  border-color:rgba(91,140,255,.55);
+  background:#172033;
+}
+
+.history-page-btn:disabled{
+  opacity:.4;
+  cursor:not-allowed;
+}
+
+.history-page-info{
+  min-width:82px;
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+}
+
+@media(max-width:620px){
+  .history-pagination{
+    gap:8px;
+  }
+
+  .history-page-btn{
+    padding:7px 10px;
+  }
 }

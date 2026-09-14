@@ -128,12 +128,14 @@ const matchStatus=m.user_prediction
       <div class="teams">
         <button class="team ${m.user_prediction===m.team_a?'selected':''} ${locked?'locked':''}" ${predictionDisabled?'disabled':''} onclick="predict(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">
           ${logo(m.team_a_logo,m.team_a)}
-          <strong>${escapeHtml(m.team_a)}</strong><span>${m.odds_a}</span>
+          <strong>${escapeHtml(m.team_a)}</strong>
+<span>${m.source==='pandascore'?'—':m.odds_a}</span>
         </button>
         <div class="vs">VS${m.number_of_games?`<div class="match-format">BO${Number(m.number_of_games)}</div>`:(m.match_type?`<div class="match-format">${escapeHtml(m.match_type)}</div>`:'')}</div>
        <button class="team ${m.user_prediction===m.team_b?'selected':''} ${locked?'locked':''}" ${predictionDisabled?'disabled':''} onclick="predict(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">
           ${logo(m.team_b_logo,m.team_b)}
-          <strong>${escapeHtml(m.team_b)}</strong><span>${m.odds_b}</span>
+          <strong>${escapeHtml(m.team_b)}</strong>
+<span>${m.source==='pandascore'?'—':m.odds_b}</span>
         </button>
       </div>
       <div class="match-footer">
@@ -183,7 +185,7 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
   onclick="predict(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">
         ${logo(m.team_a_logo,m.team_a)}
         <strong>${escapeHtml(m.team_a)}</strong>
-        <span>${m.odds_a}</span>
+        <span>${m.source==='pandascore'?'—':m.odds_a}</span>
       </button>
 
       <div class="vs">
@@ -201,7 +203,7 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
   onclick="predict(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">
         ${logo(m.team_b_logo,m.team_b)}
         <strong>${escapeHtml(m.team_b)}</strong>
-        <span>${m.odds_b}</span>
+       <span>${m.source==='pandascore'?'—':m.odds_b}</span>
       </button>
     </div>
 

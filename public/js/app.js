@@ -341,15 +341,35 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
         <span>${m.source==='pandascore'?'—':m.odds_a}</span>
       </button>
 
-      <div class="vs">
-        VS
-        ${m.number_of_games
-          ? `<div class="match-format">BO${Number(m.number_of_games)}</div>`
-          : (m.match_type
-              ? `<div class="match-format">${escapeHtml(m.match_type)}</div>`
-              : '')
-        }
-      </div>
+    <div class="vs">
+  ${
+    Number.isFinite(Number(m.score_a)) &&
+    Number.isFinite(Number(m.score_b)) &&
+    m.score_a !== null &&
+    m.score_b !== null &&
+    (Number(m.score_a)>0 || Number(m.score_b)>0)
+      ? `
+        <div class="result-score">
+          <span class="${Number(m.score_a)>Number(m.score_b)?'score-winner':'score-loser'}">
+            ${Number(m.score_a)}
+          </span>
+          <span class="score-colon">:</span>
+          <span class="${Number(m.score_b)>Number(m.score_a)?'score-winner':'score-loser'}">
+            ${Number(m.score_b)}
+          </span>
+        </div>
+      `
+      : 'VS'
+  }
+
+  ${
+    m.number_of_games
+      ? `<div class="match-format">BO${Number(m.number_of_games)}</div>`
+      : (m.match_type
+        ? `<div class="match-format">${escapeHtml(m.match_type)}</div>`
+        : '')
+  }
+</div>
 
       <button class="team ${m.user_prediction===m.team_b?'selected':''} ${locked?'locked':''}"
   ${predictionDisabled?'disabled':''}

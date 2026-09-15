@@ -125,9 +125,81 @@ async function syncResults(){
   const map=new Map(local.map(m=>[String(m.external_id),m]));
 
   for(const x of items){
-    const m=map.get(String(x.id));
-    if(!m)continue;
+   const m=map.get(String(x.id));
 
+if(!m){
+  if(x.status!=='finished' || !x.begin_at || !x.winner_id){
+    continue;
+  }
+
+  const teams=normalizedOpponents(x);
+  if(!teams)continue;
+
+  const scoreMap=new Map(
+    Array.isArray(x.results)
+      ? x.results.map(r=>[String(r.team_id),Number(r.score)])
+      : []
+  );
+
+  const scoreA=scoreMap.get(String(teams.a.id));
+  const scoreB=scoreMap.get(String(teams.b.id));
+
+  if(
+    !Number.isFinite(scoreA) ||
+    !Number.isFinite(scoreB) ||
+    (scoreA===0 && scoreB===0)
+  ){
+    continue;
+  }
+
+  const winnerTeam=[teams.a,teams.b].find(
+    t=>String(t.id)===String(x.winner_id)
+  );
+
+  if(!winnerTeam)continue;
+
+  await pool.query(`
+    INSERT INTO matches(
+      event_name,
+      team_a,
+      team_b,
+      starts_at,
+      status,
+      winner,
+      source,
+      external_id,
+      team_a_logo,
+      team_b_logo,
+      source_status,
+      match_type,
+      number_of_games,
+      score_a,
+      score_b,
+      synced_at
+    )
+    VALUES(
+      $1,$2,$3,$4,'settled',$5,'pandascore',$6,
+      $7,$8,'finished',$9,$10,$11,$12,NOW()
+    )
+    ON CONFLICT(external_id) DO NOTHING
+  `,[
+    leagueLabel(x),
+    teams.a.name,
+    teams.b.name,
+    x.begin_at,
+    winnerTeam.name,
+    String(x.id),
+    teams.a.image_url||null,
+    teams.b.image_url||null,
+    x.match_type||null,
+    x.number_of_games||null,
+    scoreA,
+    scoreB
+  ]);
+
+  settled++;
+  continue;
+}
     checked++;
 
 if(x.status==='canceled'){

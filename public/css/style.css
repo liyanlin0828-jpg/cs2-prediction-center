@@ -1136,3 +1136,30 @@ input.history-search{
 .results-more .btn{
   min-width:220px;
 }
+.result-score{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  font-size:18px;
+  font-weight:800;
+  line-height:1;
+}
+
+.score-winner{
+  font-size:22px;
+  font-weight:900;
+  color:#6ee7b7;
+}
+
+.score-loser{
+  font-size:18px;
+  font-weight:700;
+  opacity:.55;
+}
+
+.score-colon{
+  font-size:16px;
+  opacity:.7;
+  font-weight:700;
+}

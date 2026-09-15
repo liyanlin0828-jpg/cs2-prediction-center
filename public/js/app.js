@@ -402,10 +402,18 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
       : (state.lang==='zh'?'竞猜奖励：+50':'Prediction Reward: +50')
   }
 </span>
-      <span>${m.user_prediction
-  ? '当前预测：'+escapeHtml(m.user_prediction)
-  : (locked?'🔒 已锁盘':'尚未预测')
-}</span>
+     <span>
+  ${
+    (m.status==='settled' || m.winner)
+      ? (state.lang==='zh'?'已结算':'Settled')
+      : m.user_prediction
+        ? (state.lang==='zh'?'当前预测：':'Predicted: ') + escapeHtml(m.user_prediction)
+        : (locked
+          ? (state.lang==='zh'?'🔒 已锁盘':'🔒 Locked')
+          : (state.lang==='zh'?'尚未预测':'Not Predicted')
+        )
+  }
+</span>
     </div>
   `;
 

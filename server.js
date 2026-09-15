@@ -508,6 +508,37 @@ if(!match){
     });
   }
 });
+app.get('/api/admin/debug/pandascore-past',auth,admin,async(req,res)=>{
+  try{
+    const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
+
+    res.json({
+      matches:items.map(x=>({
+        id:x.id,
+        name:x.name,
+        status:x.status,
+        winner_id:x.winner_id,
+        number_of_games:x.number_of_games,
+        results:x.results,
+        games:Array.isArray(x.games)
+          ? x.games.map(g=>({
+              id:g.id,
+              position:g.position,
+              status:g.status,
+              complete:g.complete,
+              finished:g.finished,
+              winner:g.winner
+            }))
+          : []
+      }))
+    });
+  }catch(e){
+    console.error('[PandaScore past debug]',e);
+    res.status(e.status||500).json({
+      message:e.message||'读取 PandaScore 历史比赛失败'
+    });
+  }
+});
 app.get('/api/admin/users',auth,admin,async(req,res)=>{
   const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.created_at,COUNT(p.id)::int predictions
     FROM users u LEFT JOIN predictions p ON p.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 500`);

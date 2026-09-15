@@ -479,7 +479,17 @@ if(!local){
   return res.status(404).json({message:'找不到对应的 PandaScore 比赛'});
 }
 
-const match=await panda(`/csgo/matches/${local.external_id}`);
+const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
+
+const match=items.find(
+  x=>String(x.id)===String(local.external_id)
+);
+
+if(!match){
+  return res.status(404).json({
+    message:'这场比赛不在 PandaScore 最近 100 场历史数据中'
+  });
+}
 
     res.json({
       id:match.id,

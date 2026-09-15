@@ -1,5 +1,7 @@
 const token=localStorage.getItem('cs2_token');
 const $=id=>document.getElementById(id);
+let syncHistoryExpanded=false;
+let syncHistoryRows=[];
 const api=async(path,options={})=>{
   const res=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`,...(options.headers||{})}});
   const data=await res.json().catch(()=>({}));
@@ -111,12 +113,18 @@ function renderSyncHistory(rows){
   const body=$('syncHistoryBody');
   if(!body)return;
 
-  if(!rows.length){
+  syncHistoryRows=rows||[];
+
+  if(!syncHistoryRows.length){
     body.innerHTML='<tr><td colspan="6">暂无同步历史</td></tr>';
     return;
   }
 
-  body.innerHTML=rows.map(row=>`
+  const visibleRows=syncHistoryExpanded
+    ? syncHistoryRows
+    : syncHistoryRows.slice(0,10);
+
+  body.innerHTML=visibleRows.map(row=>`
     <tr>
       <td>${new Date(row.created_at).toLocaleString('zh-CN')}</td>
       <td>${esc(row.trigger_source||'-')}</td>
@@ -136,6 +144,26 @@ function renderSyncHistory(rows){
       <td>${esc(row.error_message||'无')}</td>
     </tr>
   `).join('');
+
+  if(syncHistoryRows.length>10){
+    body.insertAdjacentHTML('beforeend',`
+      <tr>
+        <td colspan="6" style="text-align:center">
+          <button type="button" class="btn btn-secondary" id="syncHistoryToggle">
+            ${syncHistoryExpanded
+              ? '收起同步历史 ↑'
+              : `查看更多（还有 ${syncHistoryRows.length-10} 条）`
+            }
+          </button>
+        </td>
+      </tr>
+    `);
+
+    $('syncHistoryToggle').onclick=()=>{
+      syncHistoryExpanded=!syncHistoryExpanded;
+      renderSyncHistory(syncHistoryRows);
+    };
+  }
 }
 function renderMatches(rows){
   $('matchesBody').innerHTML=rows.map(m=>`<tr>

@@ -129,12 +129,28 @@ async function syncResults(){
     if(!m)continue;
 
     checked++;
-    if(x.status!=='finished'){
+
+if(x.status==='canceled'){
+  await pool.query(
+    `UPDATE matches
+     SET status='canceled',
+         winner=NULL,
+         score_a=NULL,
+         score_b=NULL
+     WHERE id=$1`,
+    [m.id]
+  );
+
   skipped++;
   continue;
 }
 
-    const teams=normalizedOpponents(x);
+if(x.status!=='finished'){
+  skipped++;
+  continue;
+}
+
+const teams=normalizedOpponents(x);
     if(!teams){
       skipped++;
       continue;

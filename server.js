@@ -543,6 +543,36 @@ app.get('/api/admin/debug/pandascore-past',auth,admin,async(req,res)=>{
     });
   }
 });
+app.get('/api/admin/debug/canceled-settlements',auth,admin,async(req,res)=>{
+  try{
+    const r=await pool.query(`
+      SELECT
+        m.id AS match_id,
+        m.external_id,
+        m.event_name,
+        m.team_a,
+        m.team_b,
+        m.winner,
+        p.id AS prediction_id,
+        p.user_id,
+        p.predicted_team,
+        p.result,
+        p.points_delta,
+        p.created_at
+      FROM matches m
+      LEFT JOIN predictions p ON p.match_id=m.id
+      WHERE m.id IN (8869,3255,957,9,24,32,39,20,13,10959)
+      ORDER BY m.id,p.id
+    `);
+
+    res.json({rows:r.rows});
+  }catch(e){
+    console.error('[Canceled settlements debug]',e);
+    res.status(500).json({
+      message:'读取误结算检查数据失败'
+    });
+  }
+});
 app.get('/api/admin/users',auth,admin,async(req,res)=>{
   const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.created_at,COUNT(p.id)::int predictions
     FROM users u LEFT JOIN predictions p ON p.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 500`);

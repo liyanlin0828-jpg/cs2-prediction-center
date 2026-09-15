@@ -143,7 +143,13 @@ m.score_b !== null &&
 
       <div class="match-footer">
         <span>🏆 胜者：${escapeHtml(m.winner)}</span>
-        <span>已结算</span>
+        <button
+  type="button"
+  class="match-detail-btn"
+  onclick="openMatchDetail(${m.id})"
+>
+  查看详情 →
+</button>
       </div>
     </article>`;
 }).join('');
@@ -301,7 +307,9 @@ const matchStatus=m.user_prediction
   }
 
 function openMatchDetail(matchId,autoRefresh=false){
-  const m=state.matches.find(x=>Number(x.id)===Number(matchId));
+  const m=
+  state.matches.find(x=>Number(x.id)===Number(matchId)) ||
+  state.results.find(x=>Number(x.id)===Number(matchId));
   if(!m){
     toast('找不到比赛');
     return;

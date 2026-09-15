@@ -129,6 +129,10 @@ async function syncResults(){
     if(!m)continue;
 
     checked++;
+    if(x.status!=='finished'){
+  skipped++;
+  continue;
+}
 
     const teams=normalizedOpponents(x);
     if(!teams){

@@ -181,7 +181,9 @@ if(!m){
       $1,$2,$3,$4,'settled',$5,'pandascore',$6,
       $7,$8,'finished',$9,$10,$11,$12,NOW()
     )
-    ON CONFLICT(external_id) DO NOTHING
+    ON CONFLICT(source,external_id)
+WHERE external_id IS NOT NULL
+DO NOTHING
   `,[
     leagueLabel(x),
     teams.a.name,

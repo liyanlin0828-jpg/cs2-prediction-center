@@ -145,6 +145,25 @@ if(x.status==='canceled'){
   continue;
 }
 
+if(
+  x.status==='not_started' &&
+  x.begin_at &&
+  new Date(x.begin_at).getTime() < Date.now() - 24*60*60*1000
+){
+  await pool.query(
+    `UPDATE matches
+     SET status='canceled',
+         winner=NULL,
+         score_a=NULL,
+         score_b=NULL
+     WHERE id=$1`,
+    [m.id]
+  );
+
+  skipped++;
+  continue;
+}
+
 if(x.status!=='finished'){
   skipped++;
   continue;

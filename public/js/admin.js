@@ -128,7 +128,11 @@ function renderSyncHistory(rows){
     <tr>
       <td>${new Date(row.created_at).toLocaleString('zh-CN')}</td>
       <td>${esc(row.trigger_source||'-')}</td>
-      <td>${esc(row.status||'-')}</td>
+     <td>
+  <span class="source-badge ${row.status==='success'?'win':''}">
+    ${esc(row.status||'-')}
+  </span>
+</td>
       <td>
         拉取 ${row.upcoming_fetched||0} /
         新增 ${row.upcoming_inserted||0} /

@@ -395,7 +395,13 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
     </div>
 
     <div class="match-footer">
-      <span>猜中奖励：+50</span>
+      <span>
+  ${
+    (m.status==='settled' || m.winner)
+      ? (state.lang==='zh'?'比赛已结束':'Match Finished')
+      : (state.lang==='zh'?'竞猜奖励：+50':'Prediction Reward: +50')
+  }
+</span>
       <span>${m.user_prediction
   ? '当前预测：'+escapeHtml(m.user_prediction)
   : (locked?'🔒 已锁盘':'尚未预测')

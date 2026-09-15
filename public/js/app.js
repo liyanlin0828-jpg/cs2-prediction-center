@@ -336,9 +336,9 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
       : ''}
       <span class="countdown ${countdownClass}">
   ${
-    m.status==='settled'
-      ? (state.lang==='zh'?'比赛已结束':'Match Finished')
-      : countdown(m.starts_at)
+    (m.status==='settled' || m.winner)
+  ? (state.lang==='zh'?'比赛已结束':'Match Finished')
+  : countdown(m.starts_at)
   }
 </span>
     </div>

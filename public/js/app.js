@@ -110,12 +110,22 @@ grid.innerHTML=visibleResults.map(m=>{
         <div class="vs">
   ${
     Number.isFinite(Number(m.score_a)) &&
-    Number.isFinite(Number(m.score_b)) &&
-    m.score_a !== null &&
-    m.score_b !== null &&
-    (Number(m.score_a)>0 || Number(m.score_b)>0)
-      ? `<strong>${Number(m.score_a)} : ${Number(m.score_b)}</strong>`
-      : 'VS'
+Number.isFinite(Number(m.score_b)) &&
+m.score_a !== null &&
+m.score_b !== null &&
+(Number(m.score_a)>0 || Number(m.score_b)>0)
+  ? `
+    <div class="result-score">
+      <span class="${Number(m.score_a)>Number(m.score_b)?'score-winner':'score-loser'}">
+        ${Number(m.score_a)}
+      </span>
+      <span class="score-colon">:</span>
+      <span class="${Number(m.score_b)>Number(m.score_a)?'score-winner':'score-loser'}">
+        ${Number(m.score_b)}
+      </span>
+    </div>
+  `
+  : 'VS'
   }
   ${
     m.number_of_games

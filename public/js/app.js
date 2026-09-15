@@ -112,7 +112,8 @@ grid.innerHTML=visibleResults.map(m=>{
     Number.isFinite(Number(m.score_a)) &&
     Number.isFinite(Number(m.score_b)) &&
     m.score_a !== null &&
-    m.score_b !== null
+    m.score_b !== null &&
+    (Number(m.score_a)>0 || Number(m.score_b)>0)
       ? `<strong>${Number(m.score_a)} : ${Number(m.score_b)}</strong>`
       : 'VS'
   }

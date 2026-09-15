@@ -334,7 +334,13 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
     : timeToStart<=30*60*1000
       ? '<span class="match-status soon">⏳ 即将锁盘</span>'
       : ''}
-      <span class="countdown ${countdownClass}">${countdown(m.starts_at)}</span>
+      <span class="countdown ${countdownClass}">
+  ${
+    m.status==='settled'
+      ? (state.lang==='zh'?'比赛已结束':'Match Finished')
+      : countdown(m.starts_at)
+  }
+</span>
     </div>
 
     <h2>${escapeHtml(m.event_name)}</h2>

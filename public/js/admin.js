@@ -17,10 +17,14 @@ async function boot(){
   }catch{localStorage.removeItem('cs2_token');location.href='/'}
 }
 async function refreshAll(){
-  const [stats,matches,users,health]=await Promise.all([
-    api('/admin/stats'),api('/admin/matches'),api('/admin/users'),
-    fetch('/api/health').then(r=>r.json()).catch(()=>({ok:false}))
-  ]);
+  const [stats,matches,users,health,syncHistory]=await Promise.all([
+  api('/admin/stats'),
+  api('/admin/matches'),
+  api('/admin/users'),
+  fetch('/api/health').then(r=>r.json()).catch(()=>({ok:false})),
+  api('/admin/sync-history')
+]);
+
   $('usersCount').textContent=stats.users;$('matchesCount').textContent=stats.matches;
   $('openCount').textContent=stats.open_matches;$('predictionsCount').textContent=stats.predictions;const sync=stats.sync_status;
 
@@ -101,6 +105,37 @@ $('apiStatus').textContent=systemStatus;
   $('pandaMatches').textContent=stats.pandascore_matches||0;
   $('autoSync').textContent=stats.pandascore_configured?`${stats.auto_sync_minutes} 分钟`:'关闭';
   renderMatches(matches.matches);renderUsers(users.users);
+  renderSyncHistory(syncHistory.history||[]);
+}
+function renderSyncHistory(rows){
+  const body=$('syncHistoryBody');
+  if(!body)return;
+
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="6">暂无同步历史</td></tr>';
+    return;
+  }
+
+  body.innerHTML=rows.map(row=>`
+    <tr>
+      <td>${new Date(row.created_at).toLocaleString('zh-CN')}</td>
+      <td>${esc(row.trigger_source||'-')}</td>
+      <td>${esc(row.status||'-')}</td>
+      <td>
+        拉取 ${row.upcoming_fetched||0} /
+        新增 ${row.upcoming_inserted||0} /
+        更新 ${row.upcoming_updated||0} /
+        跳过 ${row.upcoming_skipped||0}
+      </td>
+      <td>
+        拉取 ${row.results_fetched||0} /
+        检查 ${row.results_checked||0} /
+        结算 ${row.results_settled||0} /
+        跳过 ${row.results_skipped||0}
+      </td>
+      <td>${esc(row.error_message||'无')}</td>
+    </tr>
+  `).join('');
 }
 function renderMatches(rows){
   $('matchesBody').innerHTML=rows.map(m=>`<tr>

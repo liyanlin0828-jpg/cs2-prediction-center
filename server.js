@@ -466,7 +466,20 @@ app.get('/api/admin/debug/pandascore-match/:id',auth,admin,async(req,res)=>{
       return res.status(400).json({message:'无效比赛 ID'});
     }
 
-    const match=await panda(`/csgo/matches/${id}`);
+    const local=(await pool.query(
+  `SELECT external_id
+   FROM matches
+   WHERE id=$1
+     AND source='pandascore'
+     AND external_id IS NOT NULL`,
+  [id]
+)).rows[0];
+
+if(!local){
+  return res.status(404).json({message:'找不到对应的 PandaScore 比赛'});
+}
+
+const match=await panda(`/csgo/matches/${local.external_id}`);
 
     res.json({
       id:match.id,

@@ -199,6 +199,31 @@ const teams=normalizedOpponents(x);
     }
   }
 
+  const pastIds=new Set(items.map(x=>String(x.id)));
+
+const stale=(await pool.query(`
+  SELECT id,external_id
+  FROM matches
+  WHERE source='pandascore'
+    AND status='open'
+    AND starts_at < NOW() - INTERVAL '24 hours'
+`)).rows;
+
+for(const m of stale){
+  if(pastIds.has(String(m.external_id)))continue;
+
+  await pool.query(
+    `UPDATE matches
+     SET status='canceled',
+         winner=NULL,
+         score_a=NULL,
+         score_b=NULL
+     WHERE id=$1`,
+    [m.id]
+  );
+
+  skipped++;
+}
   return {
     fetched:items.length,
     checked,

@@ -458,6 +458,33 @@ app.get('/api/admin/sync-history',auth,admin,async(req,res)=>{
     res.status(500).json({message:'获取同步历史失败'});
   }
 });
+app.get('/api/admin/debug/pandascore-match/:id',auth,admin,async(req,res)=>{
+  try{
+    const id=String(req.params.id||'').trim();
+
+    if(!/^\d+$/.test(id)){
+      return res.status(400).json({message:'无效比赛 ID'});
+    }
+
+    const match=await panda(`/csgo/matches/${id}`);
+
+    res.json({
+      id:match.id,
+      name:match.name,
+      status:match.status,
+      winner_id:match.winner_id,
+      number_of_games:match.number_of_games,
+      results:match.results,
+      games:match.games,
+      opponents:match.opponents
+    });
+  }catch(e){
+    console.error('[PandaScore debug]',e);
+    res.status(e.status||500).json({
+      message:e.message||'读取 PandaScore 比赛详情失败'
+    });
+  }
+});
 app.get('/api/admin/users',auth,admin,async(req,res)=>{
   const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.created_at,COUNT(p.id)::int predictions
     FROM users u LEFT JOIN predictions p ON p.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 500`);

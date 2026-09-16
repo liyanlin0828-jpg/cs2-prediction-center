@@ -523,6 +523,8 @@ WHERE
   OR m.source_status='running'
 ORDER BY m.starts_at
 LIMIT 100
+`,[userId]);
+  
   res.json({matches:r.rows});
 });
 app.get('/api/results',async(req,res)=>{

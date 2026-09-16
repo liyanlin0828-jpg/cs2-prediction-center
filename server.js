@@ -110,7 +110,78 @@ const isWin=p.predicted_team===winner,delta=isWin?50:0,result=isWin?'win':'loss'
   }catch(e){await client.query('ROLLBACK');throw e}
   finally{client.release()}
 }
+async function syncRunning(){
+  const items=await panda('/csgo/matches/running?per_page=100');
+  let inserted=0,updated=0,skipped=0;
 
+  for(const x of items){
+    const teams=normalizedOpponents(x);
+    if(!teams){
+      skipped++;
+      continue;
+    }
+
+    const r=await pool.query(`
+      INSERT INTO matches(
+        event_name,
+        team_a,
+        team_b,
+        odds_a,
+        odds_b,
+        starts_at,
+        status,
+        source,
+        external_id,
+        team_a_logo,
+        team_b_logo,
+        source_status,
+        match_type,
+        number_of_games,
+        synced_at
+      )
+      VALUES(
+        $1,$2,$3,1.80,1.80,$4,'running','pandascore',$5,
+        $6,$7,$8,$9,$10,NOW()
+      )
+      ON CONFLICT(source,external_id)
+      WHERE external_id IS NOT NULL
+      DO UPDATE SET
+        event_name=EXCLUDED.event_name,
+        team_a=EXCLUDED.team_a,
+        team_b=EXCLUDED.team_b,
+        starts_at=EXCLUDED.starts_at,
+        status='running',
+        team_a_logo=EXCLUDED.team_a_logo,
+        team_b_logo=EXCLUDED.team_b_logo,
+        source_status=EXCLUDED.source_status,
+        match_type=EXCLUDED.match_type,
+        number_of_games=EXCLUDED.number_of_games,
+        synced_at=NOW()
+      RETURNING (xmax=0) AS inserted
+    `,[
+      leagueLabel(x),
+      teams.a.name,
+      teams.b.name,
+      x.begin_at||new Date().toISOString(),
+      String(x.id),
+      teams.a.image_url||null,
+      teams.b.image_url||null,
+      x.status||'running',
+      x.match_type||null,
+      x.number_of_games||null
+    ]);
+
+    if(r.rows[0]?.inserted)inserted++;
+    else updated++;
+  }
+
+  return {
+    fetched:items.length,
+    inserted,
+    updated,
+    skipped
+  };
+}
 async function syncResults(){
   const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
   let checked=0,settled=0,skipped=0;
@@ -445,8 +516,13 @@ app.get('/api/matches',async(req,res)=>{
   if(h.startsWith('Bearer ')){try{userId=jwt.verify(h.slice(7),JWT_SECRET).id}catch{}}
   const r=await pool.query(`SELECT m.*,
     (SELECT p.predicted_team FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_prediction
-    FROM matches m WHERE m.status='open' AND m.starts_at>NOW()
-    ORDER BY m.starts_at LIMIT 100`,[userId]);
+    FROM matches m
+WHERE
+  (m.status='open' AND m.starts_at>NOW())
+  OR m.status='running'
+  OR m.source_status='running'
+ORDER BY m.starts_at
+LIMIT 100
   res.json({matches:r.rows});
 });
 app.get('/api/results',async(req,res)=>{
@@ -828,21 +904,24 @@ app.post('/api/cron/sync',async(req,res)=>{
 
   try{
     const upcoming=await syncUpcoming();
-    const results=await syncResults();
+const running=await syncRunning();
+const results=await syncResults();
 
-    console.log('[CronSync]',{upcoming,results});
+console.log('[CronSync]',{upcoming,running,results});
     await saveSyncStatus({
   status:'success',
   triggerSource:'github-cron',
   upcoming,
+  running,
   results
 });
 
     res.json({
-      ok:true,
-      upcoming,
-      results
-    });
+  ok:true,
+  upcoming,
+  running,
+  results
+});
   }catch(e){
   console.error('[CronSync error]',e);
 

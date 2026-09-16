@@ -187,45 +187,103 @@ function isPredictionLocked(iso){
 }
 function renderMatches(){
   const grid=$('matchesGrid');
-  const upcomingMatches=state.matches.filter(
-  m=>new Date(m.starts_at).getTime()>Date.now()
-);
+  const now=Date.now();
+
+const baseMatches=
+  state.matchFilter==='finished'
+    ? state.results
+    : state.matchFilter==='live'
+      ? state.matches
+      : state.matches.filter(
+          m=>new Date(m.starts_at).getTime()>now
+        );
+
 const searchTerm=($('matchSearch')?.value||'').trim().toLowerCase();
 
-const searchedMatches=upcomingMatches.filter(m=>{
+const searchedMatches=baseMatches.filter(m=>{
   if(!searchTerm)return true;
 
   const text=`${m.event_name||''} ${m.team_a||''} ${m.team_b||''}`.toLowerCase();
   return text.includes(searchTerm);
 });
-const predictedCount=searchedMatches.filter(m=>!!m.user_prediction).length;
-const pendingCount=searchedMatches.length-predictedCount;
+const todayStart=new Date();
+todayStart.setHours(0,0,0,0);
 
-const allBtn=document.querySelector('.match-filter[data-filter="all"]');
-const pendingBtn=document.querySelector('.match-filter[data-filter="pending"]');
-const predictedBtn=document.querySelector('.match-filter[data-filter="predicted"]');
+const tomorrowStart=new Date(todayStart);
+tomorrowStart.setDate(tomorrowStart.getDate()+1);
 
-if(allBtn){
-  allBtn.textContent=state.lang==='zh'
-    ? `全部 ${searchedMatches.length}`
-    : `All ${searchedMatches.length}`;
-}
+const dayAfterTomorrow=new Date(todayStart);
+dayAfterTomorrow.setDate(dayAfterTomorrow.getDate()+2);
 
-if(pendingBtn){
-  pendingBtn.textContent=state.lang==='zh'
-    ? `未预测 ${pendingCount}`
-    : `Not Predicted ${pendingCount}`;
-}
+const counts={
+  all: state.matches.filter(
+    m=>new Date(m.starts_at).getTime()>Date.now()
+  ).length,
 
-if(predictedBtn){
-  predictedBtn.textContent=state.lang==='zh'
-    ? `已预测 ${predictedCount}`
-    : `Predicted ${predictedCount}`;
-}
+  today: state.matches.filter(m=>{
+    const start=new Date(m.starts_at);
+    return start>=todayStart && start<tomorrowStart;
+  }).length,
+
+  tomorrow: state.matches.filter(m=>{
+    const start=new Date(m.starts_at);
+    return start>=tomorrowStart && start<dayAfterTomorrow;
+  }).length,
+
+  live: state.matches.filter(
+    m=>m.status==='running' || m.source_status==='running'
+  ).length,
+
+  finished: state.results.length
+};
+
+document.querySelectorAll('.match-filter').forEach(btn=>{
+  const key=btn.dataset.filter;
+  const labels={
+    all:state.lang==='zh'?'全部':'All',
+    today:state.lang==='zh'?'今日':'Today',
+    tomorrow:state.lang==='zh'?'明日':'Tomorrow',
+    live:'Live',
+    finished:state.lang==='zh'?'已结束':'Finished'
+  };
+
+  btn.textContent=`${labels[key]} ${counts[key]??0}`;
+});
 
 const visibleMatches=searchedMatches.filter(m=>{
-  if(state.matchFilter==='pending')return !m.user_prediction;
-  if(state.matchFilter==='predicted')return !!m.user_prediction;
+  if(state.matchFilter==='all')return true;
+
+  const now=new Date();
+  const start=new Date(m.starts_at);
+
+  const todayStart=new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const tomorrowStart=new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate()+1);
+
+  const dayAfterTomorrow=new Date(todayStart);
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate()+2);
+
+  if(state.matchFilter==='today'){
+    return start>=todayStart && start<tomorrowStart;
+  }
+
+  if(state.matchFilter==='tomorrow'){
+    return start>=tomorrowStart && start<dayAfterTomorrow;
+  }
+
+  if(state.matchFilter==='live'){
+    return m.status==='running' || m.source_status==='running';
+  }
+
+  if(state.matchFilter==='finished'){
+    return m.status==='settled' || !!m.winner;
+  }
+
   return true;
 });
   const sortDirection=$('matchSort')?.value||'asc';
@@ -239,12 +297,15 @@ const sortedMatches=[...visibleMatches].sort((a,b)=>{
     : timeA-timeB;
 });
   if(!visibleMatches.length){
- const emptyText=
-  state.matchFilter==='pending'
-    ? (state.lang==='zh'?'暂无未预测比赛':'No unpredicted matches')
-    : state.matchFilter==='predicted'
-      ? (state.lang==='zh'?'暂无已预测比赛':'No predicted matches')
-      : (state.lang==='zh'?'暂无未来比赛':'No upcoming matches');
+  const emptyMessages={
+    all: state.lang==='zh'?'暂无比赛':'No matches',
+    today: state.lang==='zh'?'今日暂无比赛':'No matches today',
+    tomorrow: state.lang==='zh'?'明日暂无比赛':'No matches tomorrow',
+    live: state.lang==='zh'?'当前暂无进行中的比赛':'No live matches',
+    finished: state.lang==='zh'?'暂无已结束比赛':'No finished matches'
+  };
+
+  const emptyText=emptyMessages[state.matchFilter] || emptyMessages.all;
 
   grid.innerHTML=`<div class="empty">${emptyText}</div>`;
   return;

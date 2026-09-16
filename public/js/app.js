@@ -373,7 +373,14 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
           </span>
         </div>
       `
-      : 'VS'
+      : `
+        <div>VS</div>
+        ${
+          m.winner
+            ? `<div class="match-format">胜者：${escapeHtml(m.winner)}</div>`
+            : ''
+        }
+      `
   }
 
   ${

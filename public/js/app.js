@@ -313,6 +313,68 @@ const sortedMatches=[...visibleMatches].sort((a,b)=>{
   grid.innerHTML=sortedMatches.map(m=>{
     const source=m.source==='pandascore'?'PandaScore':'手动赛事';
     const sourceClass=m.source==='pandascore'?'':' manual';
+   if(state.matchFilter==='finished'){
+  const teamAWin=m.winner===m.team_a;
+  const teamBWin=m.winner===m.team_b;
+
+  const hasScore=
+    Number.isFinite(Number(m.score_a)) &&
+    Number.isFinite(Number(m.score_b)) &&
+    m.score_a!==null &&
+    m.score_b!==null &&
+    (Number(m.score_a)>0 || Number(m.score_b)>0);
+
+  return `<article class="match-card">
+    <div class="match-title-row">
+      <span class="live-source ${sourceClass}">${source}</span>
+      <span class="match-status">✅ 已结束</span>
+    </div>
+
+    <div class="match-meta">
+      <span>${escapeHtml(m.event_name||'')}</span>
+      <span>${new Date(m.starts_at).toLocaleString('zh-CN')}</span>
+    </div>
+
+    <div class="teams">
+      <div class="team ${teamAWin?'selected':''}">
+        ${logo(m.team_a_logo,m.team_a)}
+        <strong>${escapeHtml(m.team_a)}</strong>
+      </div>
+
+      <div class="vs">
+        ${
+          hasScore
+            ? `<div class="result-score">
+                <span class="${Number(m.score_a)>Number(m.score_b)?'score-winner':'score-loser'}">
+                  ${Number(m.score_a)}
+                </span>
+                <span class="score-colon">:</span>
+                <span class="${Number(m.score_b)>Number(m.score_a)?'score-winner':'score-loser'}">
+                  ${Number(m.score_b)}
+                </span>
+              </div>`
+            : 'VS'
+        }
+
+        ${
+          m.number_of_games
+            ? `<div class="match-format">BO${Number(m.number_of_games)}</div>`
+            : ''
+        }
+      </div>
+
+      <div class="team ${teamBWin?'selected':''}">
+        ${logo(m.team_b_logo,m.team_b)}
+        <strong>${escapeHtml(m.team_b)}</strong>
+      </div>
+    </div>
+
+    <div class="match-footer">
+      <span>🏆 胜者：${escapeHtml(m.winner||'待确认')}</span>
+      <span>已结束</span>
+    </div>
+  </article>`;
+} 
     const locked=isPredictionLocked(m.starts_at);
     const predictionDisabled=locked;
     const timeToStart=new Date(m.starts_at).getTime()-Date.now();

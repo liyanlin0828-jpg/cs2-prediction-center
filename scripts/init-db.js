@@ -28,6 +28,7 @@ async function runSql(client,file){
     await runSql(client,'migration_v9.sql');
     await runSql(client,'migration_v10.sql');
     await runSql(client,'migration_v11.sql');
+    await runSql(client,'migration_v12.sql');
     await runSql(client,'seed.sql');
 
     const adminPassword=process.env.ADMIN_PASSWORD || (process.env.NODE_ENV==='production'?null:'Admin123!');

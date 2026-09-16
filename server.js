@@ -1035,16 +1035,18 @@ if(PANDA_TOKEN){
 const run=async()=>{
   try{
     const u=await syncUpcoming();
-    const r=await syncResults();
+const l=await syncRunning();
+const r=await syncResults();
 
-    console.log('[AutoSync]',{upcoming:u,results:r});
+console.log('[AutoSync]',{upcoming:u,running:l,results:r});
 
     await saveSyncStatus({
-      status:'success',
-      triggerSource:'render-autosync',
-      upcoming:u,
-      results:r
-    });
+  status:'success',
+  triggerSource:'render-autosync',
+  upcoming:u,
+  running:l,
+  results:r
+});
   }catch(e){
     console.error('[AutoSync error]',e.message);
 

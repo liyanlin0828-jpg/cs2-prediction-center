@@ -523,6 +523,34 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
        <span>${m.source==='pandascore'?'—':m.odds_b}</span>
       </button>
     </div>
+</div>
+<div class="match-insight">
+  <div>
+    <span>我的预测</span>
+    <strong>
+      ${
+        m.user_prediction
+          ? escapeHtml(m.user_prediction)
+          : '尚未预测'
+      }
+    </strong>
+  </div>
+
+  <div>
+    <span>积分变化</span>
+    <strong>
+      ${
+        (m.status==='settled' || m.winner) && m.user_prediction
+          ? (
+              m.user_prediction===m.winner
+                ? '+50'
+                : '+0'
+            )
+          : '—'
+      }
+    </strong>
+  </div>
+</div>
 
     <div class="match-footer">
       <span>

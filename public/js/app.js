@@ -423,7 +423,7 @@ const matchStatus=m.user_prediction
         </button>
       </div>
       <div class="match-footer">
-<span>${state.lang==='zh'?'猜中奖励':'Prediction Reward'}：+50</span>
+<span>${state.lang==='zh'?'按锁定赔率结算':'Settled at locked odds'}</span>
 
 <span>${
   m.user_prediction
@@ -551,6 +551,25 @@ ${
       </button>
     </div>
 </div>
+${!locked && m.status!=='settled' && !m.winner ? `
+  <div style="margin:16px 0;">
+    <div style="margin-bottom:8px;">
+      可用积分：<strong>${Number(state.me?.points||0)}</strong>
+    </div>
+
+    <label>
+      下注积分：
+      <input
+        id="stakePointsInput"
+        type="number"
+        min="1"
+        step="1"
+        placeholder="请输入下注积分"
+        style="width:160px;margin-left:8px;"
+      >
+    </label>
+  </div>
+` : ''}
 ${
   !locked && m.status!=='settled' && !m.winner
     ? `
@@ -708,22 +727,34 @@ async function predict(matchId,team){
   if(!state.me){openAuth('login');toast('请先登录');return}
   const match=state.matches.find(m=>Number(m.id)===Number(matchId));
 const currentPrediction=match?.user_prediction||null;
+  let stakePoints=Number($('stakePointsInput')?.value);
 
-if(currentPrediction===team){
-  toast(`当前已经预测 ${team}`);
-  return;
+if(!Number.isInteger(stakePoints) || stakePoints<=0){
+  const entered=window.prompt('请输入下注积分：');
+  if(entered===null)return;
+
+  stakePoints=Number(entered);
+
+  if(!Number.isInteger(stakePoints) || stakePoints<=0){
+    toast('下注积分必须是大于0的整数');
+    return;
+  }
 }
 
 const confirmText=currentPrediction
-  ? `确认将预测从 ${currentPrediction} 修改为 ${team} 吗？`
-  : `确认预测 ${team} 吗？赛前10分钟将停止修改`;
+  ? `确认修改预测为 ${team}，下注 ${stakePoints} 积分吗？`
+  : `确认预测 ${team}，下注 ${stakePoints} 积分吗？`;
 
 if(!window.confirm(confirmText))return;
   try{
     
 const data=await api('/predictions',{
   method:'POST',
-  body:JSON.stringify({matchId,team})
+  body:JSON.stringify({
+  matchId,
+  team,
+  stakePoints
+})
 });
 
 state.me=data.user;

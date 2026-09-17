@@ -481,6 +481,7 @@ ${
     <p>${new Date(m.starts_at).toLocaleString('zh-CN')}</p>
 
     <div class="teams">
+  
       <button class="team ${m.user_prediction===m.team_a?'selected':''} ${locked?'locked':''}"
   ${predictionDisabled?'disabled':''}
   onclick="predict(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">
@@ -535,6 +536,32 @@ ${
       </button>
     </div>
 </div>
+${
+  !locked && m.status!=='settled' && !m.winner
+    ? `
+      <div class="map-predict-box">
+        <div class="map-predict-title">总地图数预测</div>
+
+        <div class="map-predict-options">
+          ${
+            Number(m.number_of_games)===3
+              ? `
+                <button type="button" class="btn btn-secondary">2 张</button>
+                <button type="button" class="btn btn-secondary">3 张</button>
+              `
+              : Number(m.number_of_games)===5
+                ? `
+                  <button type="button" class="btn btn-secondary">3 张</button>
+                  <button type="button" class="btn btn-secondary">4 张</button>
+                  <button type="button" class="btn btn-secondary">5 张</button>
+                `
+                : `<span>暂无可预测地图数</span>`
+          }
+        </div>
+      </div>
+    `
+    : ''
+}
 <div class="match-insight">
   <div>
     <span>我的预测</span>

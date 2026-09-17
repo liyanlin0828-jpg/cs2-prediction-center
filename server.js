@@ -503,7 +503,10 @@ app.post('/api/auth/register',async(req,res)=>{
   if(!password||password.length<8)return res.status(400).json({message:'密码至少8位'});
   try{
     const hash=await bcrypt.hash(password,12);
-    const r=await pool.query('INSERT INTO users(username,password_hash) VALUES($1,$2) RETURNING id,username,role,points',[username,hash]);
+    const r=await pool.query(
+  'INSERT INTO users(username,password_hash,points) VALUES($1,$2,0) RETURNING id,username,role,points',
+  [username,hash]
+);
     res.status(201).json({token:sign(r.rows[0]),user:r.rows[0],message:'注册成功'});
   }catch(e){
     if(e.code==='23505')return res.status(409).json({message:'用户名已存在'});

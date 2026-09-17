@@ -705,7 +705,7 @@ app.post('/api/map-predictions',auth,async(req,res)=>{
   }
 });
 app.get('/api/predictions/me',auth,async(req,res)=>{
-  const r=await pool.query(`SELECT p.id,p.predicted_team,p.result,p.points_delta,p.created_at,
+  const r=await pool.query(`SELECT p.id,p.match_id,p.predicted_team,p.result,p.points_delta,p.created_at,
     m.event_name,m.team_a,m.team_b,m.starts_at,m.winner
     FROM predictions p JOIN matches m ON m.id=p.match_id WHERE p.user_id=$1 ORDER BY p.created_at DESC`,[req.user.id]);
   res.json({predictions:r.rows});

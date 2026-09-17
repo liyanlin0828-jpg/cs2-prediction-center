@@ -642,7 +642,7 @@ ${
   ${
     (m.status==='settled' || m.winner)
       ? (state.lang==='zh'?'比赛已结束':'Match Finished')
-      : (state.lang==='zh'?'竞猜奖励：+50':'Prediction Reward: +50')
+      : (state.lang==='zh'?'按锁定赔率结算':'Settled at locked odds')
   }
 </span>
      <span>

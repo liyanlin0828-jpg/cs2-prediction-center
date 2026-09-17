@@ -100,6 +100,10 @@ async function settleMatch(matchId,winner){
     if(!m)throw Object.assign(new Error('比赛不存在'),{status:404});
     if(m.status==='settled')return {settledPredictions:0,alreadySettled:true};
     if(winner!==m.team_a&&winner!==m.team_b)throw Object.assign(new Error('获胜队伍无效'),{status:400});
+    const preds=(await client.query(
+  'SELECT * FROM predictions WHERE match_id=$1 AND result IS NULL FOR UPDATE',
+  [m.id]
+)).rows;
     for(const p of preds){
   const isWin=p.predicted_team===winner;
   const result=isWin?'win':'loss';

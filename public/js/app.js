@@ -546,14 +546,14 @@ ${
           ${
             Number(m.number_of_games)===3
               ? `
-                <button type="button" class="btn btn-secondary">2 张</button>
-                <button type="button" class="btn btn-secondary">3 张</button>
+                <button type="button" class="btn btn-secondary" onclick="selectMapCount(2,this)">2 张</button>
+<button type="button" class="btn btn-secondary" onclick="selectMapCount(3,this)">3 张</button>
               `
               : Number(m.number_of_games)===5
                 ? `
-                  <button type="button" class="btn btn-secondary">3 张</button>
-                  <button type="button" class="btn btn-secondary">4 张</button>
-                  <button type="button" class="btn btn-secondary">5 张</button>
+                  <button type="button" class="btn btn-secondary" onclick="selectMapCount(3,this)">3 张</button>
+<button type="button" class="btn btn-secondary" onclick="selectMapCount(4,this)">4 张</button>
+<button type="button" class="btn btn-secondary" onclick="selectMapCount(5,this)">5 张</button>
                 `
                 : `<span>暂无可预测地图数</span>`
           }
@@ -628,6 +628,19 @@ if(!autoRefresh){
 }
 
 window.openMatchDetail=openMatchDetail;
+function selectMapCount(count,btn){
+  const box=btn.closest('.map-predict-options');
+  if(!box)return;
+
+  box.querySelectorAll('button').forEach(b=>{
+    b.classList.remove('selected');
+  });
+
+  btn.classList.add('selected');
+  btn.dataset.mapCount=String(count);
+}
+
+window.selectMapCount=selectMapCount;
 $('backToMatchesBtn').onclick=()=>{
   $('matchDetail').classList.add('hidden');
   $('matches').classList.remove('hidden');

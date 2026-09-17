@@ -903,9 +903,39 @@ app.get('/api/admin/debug/canceled-settlements',auth,admin,async(req,res)=>{
   }
 });
 app.get('/api/admin/users',auth,admin,async(req,res)=>{
-  const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.created_at,COUNT(p.id)::int predictions
+  const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.locked_points,u.created_at,COUNT(p.id)::int predictions
     FROM users u LEFT JOIN predictions p ON p.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 500`);
   res.json({users:r.rows});
+});
+app.post('/api/admin/users/:id/points',auth,admin,async(req,res)=>{
+  const userId=Number(req.params.id);
+  const amount=Number(req.body?.amount);
+
+  if(!Number.isInteger(userId) || userId<=0){
+    return res.status(400).json({message:'无效用户'});
+  }
+
+  if(!Number.isInteger(amount) || amount<=0){
+    return res.status(400).json({message:'发放积分必须是大于0的整数'});
+  }
+
+  const r=await pool.query(
+    `UPDATE users
+     SET points=points+$1
+     WHERE id=$2
+     RETURNING id,username,points,locked_points`,
+    [amount,userId]
+  );
+
+  if(!r.rows[0]){
+    return res.status(404).json({message:'用户不存在'});
+  }
+
+  res.json({
+    ok:true,
+    user:r.rows[0],
+    message:`已发放 ${amount} 积分`
+  });
 });
 app.get('/api/admin/matches',auth,admin,async(req,res)=>{
   const r=await pool.query('SELECT * FROM matches ORDER BY starts_at DESC LIMIT 500');res.json({matches:r.rows});

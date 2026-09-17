@@ -186,9 +186,63 @@ function renderMatches(rows){
     : ''}
 </div></td></tr>`).join('');
 }
-function renderUsers(rows){$('usersBody').innerHTML=rows.map(u=>`<tr>
-  <td>${u.id}</td><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${u.points}</td>
-  <td>${u.predictions}</td><td>${new Date(u.created_at).toLocaleString('zh-CN')}</td></tr>`).join('')}
+function renderUsers(rows){
+  $('usersBody').innerHTML=rows.map(u=>`<tr>
+    <td>${u.id}</td>
+    <td>${esc(u.username)}</td>
+    <td>${esc(u.role)}</td>
+
+    <td>
+      <div>可用：<strong>${Number(u.points||0)}</strong></div>
+      <div>冻结：${Number(u.locked_points||0)}</div>
+
+      ${u.role!=='admin'?`
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <input
+            id="grantPoints-${u.id}"
+            type="number"
+            min="1"
+            step="1"
+            placeholder="积分"
+            style="width:90px;"
+          >
+          <button
+            class="mini-btn"
+            onclick="grantPoints(${u.id})"
+          >发放</button>
+        </div>
+      `:''}
+    </td>
+
+    <td>${u.predictions}</td>
+    <td>${new Date(u.created_at).toLocaleString('zh-CN')}</td>
+  </tr>`).join('');
+}
+window.grantPoints=async function(userId){
+  const input=$(`grantPoints-${userId}`);
+  const amount=Number(input?.value);
+
+  if(!Number.isInteger(amount)||amount<=0){
+    toast('请输入大于0的整数积分');
+    return;
+  }
+
+  if(!confirm(`确认给该用户发放 ${amount} 积分？`)){
+    return;
+  }
+
+  try{
+    const data=await api(`/admin/users/${userId}/points`,{
+      method:'POST',
+      body:JSON.stringify({amount})
+    });
+
+    toast(data.message||'积分发放成功');
+    await refreshAll();
+  }catch(e){
+    toast(e.message||'积分发放失败');
+  }
+};
 window.settle=async(id,winner)=>{
   if(!confirm(`确认 ${winner} 获胜并结算积分？`))return;
   try{await api(`/admin/matches/${id}/result`,{method:'POST',body:JSON.stringify({winner})});toast('结算完成');await refreshAll()}

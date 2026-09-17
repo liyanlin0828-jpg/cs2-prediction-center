@@ -467,6 +467,10 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
     </div>
 
     <h2>${escapeHtml(m.event_name)}</h2>
+    ${m.stage_name
+  ? `<p class="match-stage">赛事阶段：${escapeHtml(m.stage_name)}</p>`
+  : ''
+}
     <p>${new Date(m.starts_at).toLocaleString('zh-CN')}</p>
 
     <div class="teams">

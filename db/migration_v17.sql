@@ -1,0 +1,5 @@
+ALTER TABLE predictions
+ADD COLUMN IF NOT EXISTS stake_points INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE predictions
+ADD COLUMN IF NOT EXISTS odds_at_prediction NUMERIC(10,4);

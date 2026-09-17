@@ -581,57 +581,157 @@ app.get('/api/leaderboard',async(req,res)=>{
   res.json({users:r.rows});
 });
 app.post('/api/predictions',auth,async(req,res)=>{
-  const {matchId,team}=req.body||{};
+  const {matchId,team,stakePoints}=req.body||{};
+  const stake=Number(stakePoints);
   const client=await pool.connect();
+
   try{
     await client.query('BEGIN');
+
     const m=(await client.query(
-  "SELECT * FROM matches WHERE id=$1 AND status='open' AND starts_at>NOW()+INTERVAL '10 minutes' FOR UPDATE",
-  [matchId]
-)).rows[0];
-    if(!m)throw Object.assign(
-  new Error('竞猜已锁定：比赛开始前10分钟停止预测'),
-  {status:400}
-);
-    if(team!==m.team_a&&team!==m.team_b)throw Object.assign(new Error('无效的预测队伍'),{status:400});
-   const existing=(await client.query(
-  'SELECT id,predicted_team,result FROM predictions WHERE user_id=$1 AND match_id=$2 FOR UPDATE',
-  [req.user.id,matchId]
-)).rows[0];
+      "SELECT * FROM matches WHERE id=$1 AND status='open' AND starts_at>NOW()+INTERVAL '10 minutes' FOR UPDATE",
+      [matchId]
+    )).rows[0];
 
-let responseStatus=201;
-let responseMessage=`预测 ${team} 成功，比赛结算后猜中 +50 积分`;
+    if(!m){
+      throw Object.assign(
+        new Error('竞猜已锁定：比赛开始前10分钟停止预测'),
+        {status:400}
+      );
+    }
 
-if(existing){
-  if(existing.result){
-    throw Object.assign(new Error('该预测已经结算，不能修改'),{status:409});
+    if(team!==m.team_a && team!==m.team_b){
+      throw Object.assign(
+        new Error('无效的预测队伍'),
+        {status:400}
+      );
+    }
+
+    if(!Number.isInteger(stake) || stake<=0){
+      throw Object.assign(
+        new Error('下注积分必须是大于0的整数'),
+        {status:400}
+      );
+    }
+
+    const currentOdds=
+      team===m.team_a
+        ? Number(m.odds_a)
+        : Number(m.odds_b);
+
+    if(!Number.isFinite(currentOdds) || currentOdds<=0){
+      throw Object.assign(
+        new Error('当前赔率无效，暂时无法下注'),
+        {status:400}
+      );
+    }
+
+    const user=(await client.query(
+      'SELECT id,username,role,points,locked_points FROM users WHERE id=$1 FOR UPDATE',
+      [req.user.id]
+    )).rows[0];
+
+    if(!user){
+      throw Object.assign(
+        new Error('用户不存在'),
+        {status:404}
+      );
+    }
+
+    const existing=(await client.query(
+      `SELECT id,predicted_team,result,stake_points,odds_at_prediction
+       FROM predictions
+       WHERE user_id=$1 AND match_id=$2
+       FOR UPDATE`,
+      [req.user.id,matchId]
+    )).rows[0];
+
+    if(existing?.result){
+      throw Object.assign(
+        new Error('该预测已经结算，不能修改'),
+        {status:409}
+      );
+    }
+
+    const oldStake=Number(existing?.stake_points||0);
+    const stakeDiff=stake-oldStake;
+
+    if(stakeDiff>0 && Number(user.points)<stakeDiff){
+      throw Object.assign(
+        new Error(`积分不足，当前可用积分：${user.points}`),
+        {status:400}
+      );
+    }
+
+    if(stakeDiff!==0){
+      await client.query(
+        `UPDATE users
+         SET
+           points=points-$1,
+           locked_points=locked_points+$1
+         WHERE id=$2`,
+        [stakeDiff,req.user.id]
+      );
+    }
+
+    let responseStatus=201;
+    let responseMessage='';
+
+    if(existing){
+      await client.query(
+        `UPDATE predictions
+         SET predicted_team=$1,
+             stake_points=$2,
+             odds_at_prediction=$3
+         WHERE id=$4`,
+        [team,stake,currentOdds,existing.id]
+      );
+
+      responseStatus=200;
+      responseMessage=`预测已修改：${team}，下注 ${stake} 积分，锁定赔率 ${currentOdds}`;
+    }else{
+      await client.query(
+        `INSERT INTO predictions(
+           user_id,
+           match_id,
+           predicted_team,
+           stake_points,
+           odds_at_prediction
+         )
+         VALUES($1,$2,$3,$4,$5)`,
+        [req.user.id,matchId,team,stake,currentOdds]
+      );
+
+      responseMessage=`预测成功：${team}，下注 ${stake} 积分，锁定赔率 ${currentOdds}`;
+    }
+
+    const updatedUser=(await client.query(
+      `SELECT id,username,role,points,locked_points
+       FROM users
+       WHERE id=$1`,
+      [req.user.id]
+    )).rows[0];
+
+    await client.query('COMMIT');
+
+    res.status(responseStatus).json({
+      ok:true,
+      user:updatedUser,
+      predicted_team:team,
+      stake_points:stake,
+      odds_at_prediction:currentOdds,
+      message:responseMessage
+    });
+
+  }catch(e){
+    await client.query('ROLLBACK');
+
+    res.status(e.status||500).json({
+      message:e.status ? e.message : '预测失败'
+    });
+  }finally{
+    client.release();
   }
-
-  if(existing.predicted_team===team){
-    throw Object.assign(new Error(`你已经预测了 ${team}`),{status:409});
-  }
-
-  await client.query(
-    'UPDATE predictions SET predicted_team=$1 WHERE id=$2',
-    [team,existing.id]
-  );
-
-  responseStatus=200;
-  responseMessage=`预测已修改为 ${team}，比赛结算后猜中 +50 积分`;
-}else{
-  await client.query(
-    'INSERT INTO predictions(user_id,match_id,predicted_team) VALUES($1,$2,$3)',
-    [req.user.id,matchId,team]
-  );
-}
-const u=(await client.query('SELECT id,username,role,points FROM users WHERE id=$1',[req.user.id])).rows[0];
-await client.query('COMMIT');
-res.status(responseStatus).json({
-  user:u,
-  message:responseMessage
-});
-  }catch(e){await client.query('ROLLBACK');res.status(e.status||500).json({message:e.status?e.message:'预测失败'})}
-  finally{client.release()}
 });
 app.post('/api/map-predictions',auth,async(req,res)=>{
   const {matchId,mapCount}=req.body||{};

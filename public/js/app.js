@@ -873,7 +873,7 @@ const pagedPredictions=sortedPredictions.slice(
         : '⏳ 待结算'
       }
     </span>
-  </div>
+  </div>`;
 }).join('')
   : `<div class="empty">${
       state.historySearch.trim()

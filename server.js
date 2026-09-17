@@ -710,7 +710,36 @@ app.get('/api/predictions/me',auth,async(req,res)=>{
     FROM predictions p JOIN matches m ON m.id=p.match_id WHERE p.user_id=$1 ORDER BY p.created_at DESC`,[req.user.id]);
   res.json({predictions:r.rows});
 });
+app.get('/api/map-predictions/me',auth,async(req,res)=>{
+  try{
+    const r=await pool.query(`
+      SELECT
+        mp.id,
+        mp.match_id,
+        mp.predicted_map_count,
+        mp.result,
+        mp.points_delta,
+        mp.created_at,
+        m.event_name,
+        m.team_a,
+        m.team_b,
+        m.starts_at,
+        m.number_of_games,
+        m.score_a,
+        m.score_b,
+        m.winner
+      FROM map_predictions mp
+      JOIN matches m ON m.id=mp.match_id
+      WHERE mp.user_id=$1
+      ORDER BY mp.created_at DESC
+    `,[req.user.id]);
 
+    res.json({mapPredictions:r.rows});
+  }catch(e){
+    console.error(e);
+    res.status(500).json({message:'获取地图数预测失败'});
+  }
+});
 /* ---------- Admin ---------- */
 app.get('/api/admin/stats',auth,admin,async(req,res)=>{
   const r=await pool.query(`SELECT

@@ -739,6 +739,12 @@ function renderLeaderboard(){
 }
 async function renderProfile(){
   const {predictions}=await api('/predictions/me');
+  const mapPredictionMap=new Map(
+  (state.mapPredictions||[]).map(p=>[
+    Number(p.match_id),
+    p
+  ])
+);
   
   const totalPredictions=predictions.length;
   const winCount=predictions.filter(p=>p.result==='win').length;

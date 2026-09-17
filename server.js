@@ -630,6 +630,80 @@ res.status(responseStatus).json({
   }catch(e){await client.query('ROLLBACK');res.status(e.status||500).json({message:e.status?e.message:'预测失败'})}
   finally{client.release()}
 });
+app.post('/api/map-predictions',auth,async(req,res)=>{
+  const {matchId,mapCount}=req.body||{};
+  const client=await pool.connect();
+
+  try{
+    await client.query('BEGIN');
+
+    const m=(await client.query(
+      "SELECT * FROM matches WHERE id=$1 AND status='open' AND starts_at>NOW()+INTERVAL '10 minutes' FOR UPDATE",
+      [matchId]
+    )).rows[0];
+
+    if(!m){
+      throw Object.assign(
+        new Error('竞猜已锁定：比赛开始前10分钟停止预测'),
+        {status:400}
+      );
+    }
+
+    const bestOf=Number(m.number_of_games);
+
+    if(
+  ![3,5].includes(bestOf) ||
+  !Number.isInteger(Number(mapCount)) ||
+  (bestOf===3 && ![2,3].includes(Number(mapCount))) ||
+  (bestOf===5 && ![3,4,5].includes(Number(mapCount)))
+){
+      throw Object.assign(
+        new Error('无效的总地图数预测'),
+        {status:400}
+      );
+    }
+
+    const existing=(await client.query(
+      'SELECT id,result,predicted_map_count FROM map_predictions WHERE user_id=$1 AND match_id=$2 FOR UPDATE',
+      [req.user.id,matchId]
+    )).rows[0];
+
+    if(existing?.result){
+      throw Object.assign(
+        new Error('该地图数预测已经结算，不能修改'),
+        {status:409}
+      );
+    }
+
+    if(existing){
+      await client.query(
+        'UPDATE map_predictions SET predicted_map_count=$1 WHERE id=$2',
+        [Number(mapCount),existing.id]
+      );
+    }else{
+      await client.query(
+        'INSERT INTO map_predictions(user_id,match_id,predicted_map_count) VALUES($1,$2,$3)',
+        [req.user.id,matchId,Number(mapCount)]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      ok:true,
+      predicted_map_count:Number(mapCount),
+      message:`已预测总地图数：${mapCount} 张`
+    });
+
+  }catch(e){
+    await client.query('ROLLBACK');
+    res.status(e.status||500).json({
+      message:e.status?e.message:'地图数预测失败'
+    });
+  }finally{
+    client.release();
+  }
+});
 app.get('/api/predictions/me',auth,async(req,res)=>{
   const r=await pool.query(`SELECT p.id,p.predicted_team,p.result,p.points_delta,p.created_at,
     m.event_name,m.team_a,m.team_b,m.starts_at,m.winner

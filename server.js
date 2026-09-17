@@ -1130,6 +1130,133 @@ app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
   });
 }
 });
+app.post('/api/admin/matches/:id/unsettle',auth,admin,async(req,res)=>{
+  const client=await pool.connect();
+
+  try{
+    await client.query('BEGIN');
+
+    const m=(await client.query(
+      `SELECT * FROM matches
+       WHERE id=$1
+       FOR UPDATE`,
+      [req.params.id]
+    )).rows[0];
+
+    if(!m){
+      throw Object.assign(
+        new Error('比赛不存在'),
+        {status:404}
+      );
+    }
+
+    if(m.status!=='settled' && !m.winner){
+      throw Object.assign(
+        new Error('该比赛尚未结算'),
+        {status:409}
+      );
+    }
+
+    const preds=(await client.query(
+      `SELECT *
+       FROM predictions
+       WHERE match_id=$1
+         AND result IS NOT NULL
+       FOR UPDATE`,
+      [m.id]
+    )).rows;
+
+    for(const p of preds){
+      const stake=Number(p.stake_points||0);
+      const odds=Number(p.odds_at_prediction||0);
+
+      const payout=
+        p.result==='win' &&
+        stake>0 &&
+        Number.isFinite(odds) &&
+        odds>0
+          ? Math.floor(stake*odds)
+          : 0;
+
+      if(stake>0){
+        const user=(await client.query(
+          `SELECT id,points,locked_points
+           FROM users
+           WHERE id=$1
+           FOR UPDATE`,
+          [p.user_id]
+        )).rows[0];
+
+        if(!user){
+          throw Object.assign(
+            new Error('预测用户不存在'),
+            {status:404}
+          );
+        }
+
+        if(Number(user.points)<payout){
+          throw Object.assign(
+            new Error(`无法撤销：用户 ${p.user_id} 的可用积分不足以收回已返还积分`),
+            {status:409}
+          );
+        }
+
+        await client.query(
+          `UPDATE users
+           SET
+             points=points-$1,
+             locked_points=locked_points+$2
+           WHERE id=$3`,
+          [payout,stake,p.user_id]
+        );
+      }
+
+      await client.query(
+        `UPDATE predictions
+         SET
+           result=NULL,
+           points_delta=0
+         WHERE id=$1`,
+        [p.id]
+      );
+    }
+
+    await client.query(
+      `UPDATE matches
+       SET
+         winner=NULL,
+         status=CASE
+           WHEN starts_at>NOW() THEN 'open'
+           ELSE 'running'
+         END,
+         source_status=CASE
+           WHEN starts_at>NOW() THEN 'not_started'
+           ELSE 'running'
+         END,
+         synced_at=NOW()
+       WHERE id=$1`,
+      [m.id]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      ok:true,
+      restoredPredictions:preds.length,
+      message:'比赛结算已撤销，预测已恢复为待结算'
+    });
+
+  }catch(e){
+    await client.query('ROLLBACK');
+    console.error('Undo settlement failed:',e);
+
+    res.status(e.status||500).json({
+      message:e.message||'撤销结算失败'
+    });
+  }finally{
+    client.release();
+  }
+});
 app.delete('/api/admin/matches/:id',auth,admin,async(req,res)=>{
   const client=await pool.connect();
 

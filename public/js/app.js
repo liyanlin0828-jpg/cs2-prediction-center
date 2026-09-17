@@ -887,13 +887,26 @@ const pagedPredictions=sortedPredictions.slice(
     </span>
 
     <span>
-      你的预测：${escapeHtml(p.predicted_team)}<br>
-      ${mapPrediction
-  ? `总地图数预测：${Number(mapPrediction.predicted_map_count)}张<br>`
-  : ''
-}
-      实际胜者：${p.winner?escapeHtml(p.winner):'待公布'}
-      ${p.created_at?'<br>预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}
+  你的预测：${escapeHtml(p.predicted_team)}<br>
+
+  ${Number(p.stake_points)>0
+    ? `下注积分：${Number(p.stake_points)}<br>`
+    : ''
+  }
+
+  ${Number(p.odds_at_prediction)>0
+    ? `锁定赔率：${Number(p.odds_at_prediction).toFixed(2)}<br>`
+    : ''
+  }
+
+  ${mapPrediction
+    ? `总地图数预测：${Number(mapPrediction.predicted_map_count)}张<br>`
+    : ''
+  }
+
+  实际胜者：${p.winner?escapeHtml(p.winner):'待公布'}
+  ${p.created_at?'<br>预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}
+</span>
     </span>
 
     <span class="prediction-status ${p.result==='win'?'win':p.result==='loss'?'loss':'pending'}">

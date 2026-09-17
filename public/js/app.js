@@ -845,7 +845,10 @@ const pagedPredictions=sortedPredictions.slice(
 </select>
 </div>
   <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
- ${pagedPredictions.length?pagedPredictions.map(p=>`
+ ${pagedPredictions.length?pagedPredictions.map(p=>{
+  const mapPrediction=mapPredictionMap.get(Number(p.match_id));
+
+  return `
   <div class="history-row">
     <span>
       ${escapeHtml(p.event_name||'CS2 比赛')}<br>
@@ -854,6 +857,10 @@ const pagedPredictions=sortedPredictions.slice(
 
     <span>
       你的预测：${escapeHtml(p.predicted_team)}<br>
+      ${mapPrediction
+  ? `总地图数预测：${Number(mapPrediction.predicted_map_count)}张<br>`
+  : ''
+}
       实际胜者：${p.winner?escapeHtml(p.winner):'待公布'}
       ${p.created_at?'<br>预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}
     </span>
@@ -867,7 +874,7 @@ const pagedPredictions=sortedPredictions.slice(
       }
     </span>
   </div>
-`).join('')
+}).join('')
   : `<div class="empty">${
       state.historySearch.trim()
         ? '🔍 没有找到匹配的预测记录'

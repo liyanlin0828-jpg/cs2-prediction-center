@@ -1,4 +1,4 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],results:[],resultsExpanded:false,mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],results:[],mapPredictions:[],resultsExpanded:false,mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
 historyPageSize:10,lang:localStorage.getItem('cs2_lang')||'zh',};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
@@ -54,7 +54,19 @@ async function loadAll(){
   state.matches=matches.matches;
 state.leaderboard=leaderboard.users;
 state.results=results.results||[];
-  if(state.token){try{state.me=(await api('/auth/me')).user}catch{logout(false)}}
+  if(state.token){
+  try{
+    state.me=(await api('/auth/me')).user;
+
+    const mapData=await api('/map-predictions/me');
+    state.mapPredictions=mapData.mapPredictions||[];
+  }catch{
+    state.mapPredictions=[];
+    logout(false);
+  }
+}else{
+  state.mapPredictions=[];
+}
   renderMatches();renderResults();renderLeaderboard();renderUser();
   const detail=$('matchDetail');
 if(detail&&!detail.classList.contains('hidden')&&detail.dataset.matchId){
@@ -433,6 +445,9 @@ function openMatchDetail(matchId,autoRefresh=false){
   const m=
   state.matches.find(x=>Number(x.id)===Number(matchId)) ||
   state.results.find(x=>Number(x.id)===Number(matchId));
+  const mapPrediction=state.mapPredictions.find(
+  p=>Number(p.match_id)===Number(matchId)
+);
   if(!m){
     toast('找不到比赛');
     return;
@@ -546,14 +561,27 @@ ${
           ${
             Number(m.number_of_games)===3
               ? `
-                <button type="button" class="btn btn-secondary" onclick="selectMapCount(2,this)">2 张</button>
-<button type="button" class="btn btn-secondary" onclick="selectMapCount(3,this)">3 张</button>
+                <button type="button"
+  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===2?'selected':''}"
+  onclick="selectMapCount(2,this)">2 张</button>
+
+<button type="button"
+  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===3?'selected':''}"
+  onclick="selectMapCount(3,this)">3 张</button>
               `
               : Number(m.number_of_games)===5
                 ? `
-                  <button type="button" class="btn btn-secondary" onclick="selectMapCount(3,this)">3 张</button>
-<button type="button" class="btn btn-secondary" onclick="selectMapCount(4,this)">4 张</button>
-<button type="button" class="btn btn-secondary" onclick="selectMapCount(5,this)">5 张</button>
+                  <button type="button"
+  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===3?'selected':''}"
+  onclick="selectMapCount(3,this)">3 张</button>
+
+<button type="button"
+  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===4?'selected':''}"
+  onclick="selectMapCount(4,this)">4 张</button>
+
+<button type="button"
+  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===5?'selected':''}"
+  onclick="selectMapCount(5,this)">5 张</button>
                 `
                 : `<span>暂无可预测地图数</span>`
           }

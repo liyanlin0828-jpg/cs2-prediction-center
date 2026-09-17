@@ -100,12 +100,41 @@ async function settleMatch(matchId,winner){
     if(!m)throw Object.assign(new Error('比赛不存在'),{status:404});
     if(m.status==='settled')return {settledPredictions:0,alreadySettled:true};
     if(winner!==m.team_a&&winner!==m.team_b)throw Object.assign(new Error('获胜队伍无效'),{status:400});
-    const preds=(await client.query('SELECT * FROM predictions WHERE match_id=$1 AND result IS NULL FOR UPDATE',[m.id])).rows;
     for(const p of preds){
-const isWin=p.predicted_team===winner,delta=isWin?50:0,result=isWin?'win':'loss';
-      await client.query('UPDATE predictions SET result=$1,points_delta=$2 WHERE id=$3',[result,delta,p.id]);
-      await client.query('UPDATE users SET points=GREATEST(0,points+$1) WHERE id=$2',[delta,p.user_id]);
-    }
+  const isWin=p.predicted_team===winner;
+  const result=isWin?'win':'loss';
+
+  const stake=Number(p.stake_points||0);
+  const odds=Number(p.odds_at_prediction||0);
+
+  const payout=
+    isWin && stake>0 && Number.isFinite(odds) && odds>0
+      ? Math.floor(stake*odds)
+      : 0;
+
+  const pointsDelta=isWin
+    ? Math.max(0,payout-stake)
+    : -stake;
+
+  await client.query(
+    `UPDATE predictions
+     SET result=$1,
+         points_delta=$2
+     WHERE id=$3`,
+    [result,pointsDelta,p.id]
+  );
+
+  if(stake>0){
+    await client.query(
+      `UPDATE users
+       SET
+         locked_points=GREATEST(0,locked_points-$1),
+         points=points+$2
+       WHERE id=$3`,
+      [stake,payout,p.user_id]
+    );
+  }
+}
     await client.query("UPDATE matches SET winner=$1,status='settled',source_status='finished',synced_at=NOW() WHERE id=$2",[winner,m.id]);
     await client.query('COMMIT');
     return {settledPredictions:preds.length,alreadySettled:false};

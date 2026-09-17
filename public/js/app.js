@@ -628,16 +628,46 @@ if(!autoRefresh){
 }
 
 window.openMatchDetail=openMatchDetail;
-function selectMapCount(count,btn){
+async function selectMapCount(count,btn){
+  if(!state.me){
+    openAuth('login');
+    toast('请先登录');
+    return;
+  }
+
+  const detail=$('matchDetail');
+  const matchId=Number(detail?.dataset?.matchId);
+
+  if(!matchId){
+    toast('找不到比赛');
+    return;
+  }
+
   const box=btn.closest('.map-predict-options');
   if(!box)return;
 
-  box.querySelectorAll('button').forEach(b=>{
-    b.classList.remove('selected');
-  });
+  const buttons=[...box.querySelectorAll('button')];
+  buttons.forEach(b=>b.disabled=true);
 
-  btn.classList.add('selected');
-  btn.dataset.mapCount=String(count);
+  try{
+    const data=await api('/map-predictions',{
+      method:'POST',
+      body:JSON.stringify({
+        matchId,
+        mapCount:Number(count)
+      })
+    });
+
+    buttons.forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    btn.dataset.mapCount=String(count);
+
+    toast(data.message||`已预测总地图数：${count} 张`);
+  }catch(e){
+    toast(e.message||'地图数预测失败');
+  }finally{
+    buttons.forEach(b=>b.disabled=false);
+  }
 }
 
 window.selectMapCount=selectMapCount;

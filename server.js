@@ -1118,7 +1118,12 @@ res.status(201).json({match:r.rows[0]});
 });
 app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
   try{const r=await settleMatch(req.params.id,(req.body||{}).winner);res.json({message:'比赛已结算',...r})}
-  catch(e){res.status(e.status||500).json({message:e.status?e.message:'结算失败'})}
+  catch(e){
+  console.error('Manual settlement failed:',e);
+  res.status(e.status||500).json({
+    message:e.message||'结算失败'
+  });
+}
 });
 app.delete('/api/admin/matches/:id',auth,admin,async(req,res)=>{
   const client=await pool.connect();

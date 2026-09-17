@@ -471,6 +471,13 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
   ? `<p class="match-stage">赛事阶段：${escapeHtml(m.stage_name)}</p>`
   : ''
 }
+${
+  (m.status==='settled' || m.winner)
+    ? `<p class="match-stage">比赛状态：已结束</p>`
+    : (m.status==='running' || m.source_status==='running')
+      ? `<p class="match-stage">比赛状态：进行中</p>`
+      : `<p class="match-stage">比赛状态：未开始</p>`
+}
     <p>${new Date(m.starts_at).toLocaleString('zh-CN')}</p>
 
     <div class="teams">

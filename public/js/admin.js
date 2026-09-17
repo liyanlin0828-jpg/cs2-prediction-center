@@ -177,10 +177,19 @@ function renderMatches(rows){
     <td>${esc(m.status)}${m.winner?` · ${esc(m.winner)}`:''}</td>
     <td><span class="source-badge">${esc(m.source||'manual')}</span></td>
     <td><div class="action-row">
-  ${m.status==='settled'?'已结算':`
+ ${m.status==='settled'
+  ? `
+    <span>已结算</span>
+    <button
+      class="mini-btn"
+      onclick="unsettle(${m.id})"
+    >撤销结算</button>
+  `
+  : `
     <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">${esc(m.team_a)} 胜</button>
     <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">${esc(m.team_b)} 胜</button>
-  `}
+  `
+}
   ${m.source==='manual' && m.status!=='settled'
     ? `<button class="mini-btn" onclick="deleteManualMatch(${m.id})">删除</button>`
     : ''}
@@ -244,10 +253,35 @@ window.grantPoints=async function(userId){
   }
 };
 window.settle=async(id,winner)=>{
-  if(!confirm(`确认 ${winner} 获胜并结算积分？`))return;
-  try{await api(`/admin/matches/${id}/result`,{method:'POST',body:JSON.stringify({winner})});toast('结算完成');await refreshAll()}
-  catch(e){toast(e.message)}
-};window.deleteManualMatch=async(id)=>{
+   if(!confirm(`确认 ${winner} 获胜并结算积分？`))return;
+ 
+  try{
+    await api(`/admin/matches/${id}/result`,
+              {method:'POST',
+               body:JSON.stringify({winner})
+              });
+    toast('结算完成');
+    await refreshAll()}
+  catch(e){
+    toast(e.message)}
+};
+window.unsettle=async function(id){
+  if(!confirm('确认撤销这场比赛的结算，并恢复相关预测为待结算吗？')){
+    return;
+  }
+
+  try{
+    const data=await api(`/admin/matches/${id}/unsettle`,{
+      method:'POST'
+    });
+
+    toast(data.message||'已撤销结算');
+    await refreshAll();
+  }catch(e){
+    toast(e.message||'撤销结算失败');
+  }
+};
+window.deleteManualMatch=async(id)=>{
   if(!confirm('确认删除这场手动比赛吗？删除后无法恢复。'))return;
 
   try{

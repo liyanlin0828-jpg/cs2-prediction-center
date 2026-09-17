@@ -1195,3 +1195,14 @@ input.history-search{
     grid-template-columns:1fr;
   }
 }
+.map-predict-options{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.map-predict-options .selected{
+  border-color:#7c6cff;
+  background:rgba(124,108,255,.18);
+  box-shadow:0 0 0 1px rgba(124,108,255,.25);
+}

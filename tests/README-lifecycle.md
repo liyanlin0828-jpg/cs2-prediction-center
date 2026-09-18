@@ -19,7 +19,9 @@
 - `node tests/match-lifecycle.test.cjs`：14 项通过。
 - 浏览器本地夹具验证延期按钮禁用、两类历史记录、已退本金筛选及后台入口。
 
-测试边界：本地事务测试使用可回滚的模拟数据库，包含写入失败、余额不一致、重复退分、结算后取消冲突及来源校验；没有真实 PostgreSQL 并发压力测试，也没有对生产账户执行测试下注或人为退分。
+另有可选的真实 PostgreSQL 引擎回归检查：本地安装 `@electric-sql/pglite@0.5.8` 后运行 `node tests/lifecycle-postgres.test.cjs`；也可将 `PGLITE_TEST_MODULE` 指向下载包的绝对目录。该测试在内存数据库复现原先 varchar/text 共用参数的类型错误，验证显式 text 类型修复、迁移重复执行、两类本金退还、重复退分、延期恢复、余额不足及最后一步 SQL 失败后的完整回滚。此依赖不加入生产服务。
+
+测试边界：55 项常规测试使用可回滚模拟数据库；附加 SQL 检查使用 PGlite 的真实 PostgreSQL 引擎。没有进行多连接并发压力测试，也没有对生产账户执行测试下注或人为退分。
 
 官方语义参考：https://developers.pandascore.co/docs/matches-lifecycle
 所有状态列表：https://developers.pandascore.co/reference/get_matches

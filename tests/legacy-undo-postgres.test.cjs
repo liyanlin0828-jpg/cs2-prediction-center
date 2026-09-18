@@ -1,0 +1,51 @@
+'use strict';
+// npm install --no-save @electric-sql/pglite@0.5.8, or set PGLITE_TEST_MODULE.
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const {PGlite}=require(process.env.PGLITE_TEST_MODULE||'@electric-sql/pglite');
+const source=fs.readFileSync(path.join(__dirname,'../server.js'),'utf8');
+(async()=>{
+ const db=new PGlite(),routes={};
+ const client={query:async(q,p)=>{const r=await db.query(q,p);return {...r,rowCount:r.affectedRows??r.rows.length}},release(){}};
+ const pool={connect:async()=>client,query:client.query};
+ const context=vm.createContext({pool,mapMarket:require('../lib/map-market'),console:{error(){}},auth(){},admin(){},app:{get:(p,...h)=>routes[p]=h.at(-1),post:(p,...h)=>routes[p]=h.at(-1)}});
+ vm.runInContext(source.slice(source.indexOf("app.get('/api/admin/matches/:id/prediction-audit'"),source.indexOf("app.delete('/api/admin/matches/:id'")),context);
+ vm.runInContext(source.slice(source.indexOf('async function settleMatch('),source.indexOf('async function syncRunning(')),context);
+ const invoke=async(route,id)=>{let status=200,data;await routes[route]({params:{id}}, {status(s){status=s;return this},json(x){data=x}});return {status,data}};
+ const undo=id=>invoke('/api/admin/matches/:id/unsettle',id);
+ const row=async(q)=>(await db.query(q)).rows[0];
+ try{
+ await db.exec(`CREATE TABLE matches(id INT PRIMARY KEY,status VARCHAR(20),winner TEXT,team_a TEXT,team_b TEXT,source_status VARCHAR(30),starts_at TIMESTAMPTZ,synced_at TIMESTAMPTZ,predictions_voided_at TIMESTAMPTZ,actual_map_count INT,map_result_source TEXT,maps_manual_review BOOLEAN);
+ CREATE TABLE users(id INT PRIMARY KEY,username TEXT,points INT,locked_points INT);
+ CREATE TABLE predictions(id INT PRIMARY KEY,match_id INT,user_id INT,predicted_team TEXT,result VARCHAR(20),stake_points INT,odds_at_prediction NUMERIC,points_delta INT);
+ CREATE TABLE map_predictions(id INT PRIMARY KEY,match_id INT,user_id INT,predicted_map_count INT,result VARCHAR(20),stake_points INT,payout_points INT,points_delta INT);
+ INSERT INTO matches(id,status,winner,team_a,team_b,starts_at) VALUES(422,'settled','Drama','Drama','ZOTIX','2026-01-01');
+ INSERT INTO users VALUES(1,'admin',1050,0);
+ INSERT INTO predictions VALUES(1,422,1,'Drama','win',0,NULL,50);`);
+ const audit=await invoke('/api/admin/matches/:id/prediction-audit',422);
+ assert.equal(audit.status,200);assert.equal(audit.data.predictions.length,1);assert.equal(audit.data.predictions[0].points_delta,50);
+ assert.equal((await undo(422)).status,200);
+ assert.deepEqual(await row('SELECT points,locked_points FROM users WHERE id=1'),{points:1000,locked_points:0});
+ assert.equal((await undo(422)).status,409);assert.equal((await row('SELECT points FROM users WHERE id=1')).points,1000);
+ await context.settleMatch(422,'ZOTIX');
+ assert.deepEqual(await row('SELECT result,points_delta FROM predictions WHERE id=1'),{result:'loss',points_delta:0});
+ assert.equal((await row('SELECT points FROM users WHERE id=1')).points,1000);
+ console.log('PASS: read-only audit, legacy +50 reversal, duplicate undo, corrected winner without invented payout');
+ await db.exec("UPDATE matches SET status='settled',winner='Drama'; UPDATE predictions SET result='loss',points_delta=-20; UPDATE users SET points=980");
+ assert.equal((await undo(422)).status,200);assert.equal((await row('SELECT points FROM users')).points,1000);
+ console.log('PASS: recorded legacy negative delta is restored');
+ await db.exec("UPDATE matches SET status='settled',winner='Drama'; UPDATE predictions SET result='win',points_delta=50; UPDATE users SET points=40");
+ assert.equal((await undo(422)).status,409);assert.equal((await row('SELECT result FROM predictions')).result,'win');assert.equal((await row('SELECT winner FROM matches')).winner,'Drama');
+ await db.exec("UPDATE users SET points=1050; INSERT INTO map_predictions VALUES(2,422,1,3,'win',100,200,100); ALTER TABLE matches ADD CONSTRAINT fail_final CHECK(winner IS NOT NULL)");
+ assert.equal((await undo(422)).status,500);
+ assert.deepEqual(await row('SELECT points,locked_points FROM users'),{points:1050,locked_points:0});
+ assert.equal((await row('SELECT result FROM predictions')).result,'win');assert.equal((await row('SELECT result FROM map_predictions')).result,'win');
+ await db.exec('ALTER TABLE matches DROP CONSTRAINT fail_final; DELETE FROM map_predictions');
+ console.log('PASS: insufficient balance and late SQL failure preserve all balances and both markets');
+ await db.exec("UPDATE users SET points=2147483640; UPDATE predictions SET result='loss',points_delta=-20");
+ assert.equal((await undo(422)).status,409);assert.equal((await row('SELECT points FROM users')).points,2147483640);
+ await db.exec("UPDATE users SET points=1100; UPDATE predictions SET result='win',stake_points=100,odds_at_prediction=2,points_delta=100");
+ assert.equal((await undo(422)).status,200);
+ assert.deepEqual(await row('SELECT points,locked_points FROM users'),{points:900,locked_points:100});
+ console.log('PASS: overflow rejected; existing staked payout reversal remains correct');
+ }finally{await db.close()}
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -1050,6 +1050,20 @@ app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
   });
 }
 });
+app.get('/api/admin/matches/:id/prediction-audit',auth,admin,async(req,res)=>{
+  try{
+    const r=await pool.query(`
+      SELECT 'winner' AS market,p.id,p.user_id,u.username,p.predicted_team AS selection,
+        p.result,p.stake_points,p.points_delta,u.points,u.locked_points
+      FROM predictions p JOIN users u ON u.id=p.user_id WHERE p.match_id=$1
+      UNION ALL
+      SELECT 'maps' AS market,p.id,p.user_id,u.username,p.predicted_map_count::text AS selection,
+        p.result,p.stake_points,p.points_delta,u.points,u.locked_points
+      FROM map_predictions p JOIN users u ON u.id=p.user_id WHERE p.match_id=$1
+      ORDER BY user_id,market,id`,[req.params.id]);
+    res.json({predictions:r.rows});
+  }catch(e){res.status(500).json({message:'读取比赛预测核对记录失败'})}
+});
 app.post('/api/admin/matches/:id/unsettle',auth,admin,async(req,res)=>{
   const client=await pool.connect();
 
@@ -1129,6 +1143,21 @@ app.post('/api/admin/matches/:id/unsettle',auth,admin,async(req,res)=>{
            WHERE id=$3`,
           [payout,stake,p.user_id]
         );
+      }else{
+        // Legacy predictions had no stake: reverse the recorded signed reward,
+        // not a newly invented stake/odds payout. The match lock prevents retries.
+        const delta=Number(p.points_delta??0);
+        if(stake!==0||!Number.isSafeInteger(delta)||Math.abs(delta)>2147483647){
+          throw Object.assign(new Error('旧版积分记录异常，未撤销结算'),{status:409});
+        }
+        if(delta!==0){
+          const reversed=await client.query(
+            `UPDATE users SET points=(points::bigint-$1::bigint)::integer WHERE id=$2
+             AND points::bigint-$1::bigint BETWEEN 0 AND 2147483647 RETURNING id`,
+            [delta,p.user_id]
+          );
+          if(!reversed.rowCount)throw Object.assign(new Error(`无法撤销：用户 ${p.user_id} 的余额不足、超限或不存在`),{status:409});
+        }
       }
 
       await client.query(

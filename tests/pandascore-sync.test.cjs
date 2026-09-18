@@ -73,7 +73,7 @@ function fixture({matches=[{id:1,external_id:'101',source:'pandascore',status:'r
     }
     return recent;
   };
-  const context=vm.createContext({pool,panda,Date,console});
+  const context=vm.createContext({pool,panda,Date,console,mapMarket:require('../lib/map-market')});
   // Load the actual functions without starting HTTP, timers, or production DB access.
   vm.runInContext(source.slice(source.indexOf('function oppTeam'),source.indexOf('async function saveSyncStatus')),context);
   return {context,calls,requests,state:()=>state,releases:()=>releases};

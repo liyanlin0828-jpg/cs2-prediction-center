@@ -7,7 +7,8 @@
   "scripts": {
     "start": "npm run db:init && node server.js",
     "dev": "node --watch server.js",
-    "db:init": "node scripts/init-db.js"
+    "db:init": "node scripts/init-db.js",
+    "test": "node tests/pandascore-sync.test.cjs && node tests/map-market.test.cjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

@@ -4,6 +4,7 @@ const path=require('path');
 const bcrypt=require('bcryptjs');
 const jwt=require('jsonwebtoken');
 const {Pool}=require('pg');
+const mapMarket=require('./lib/map-market');
 
 const app=express();
 app.disable('x-powered-by');
@@ -298,7 +299,8 @@ async function syncResults(){
     FROM matches
     WHERE source='pandascore' AND external_id IS NOT NULL
       AND (status<>'settled' OR score_a IS NULL OR score_b IS NULL
-           OR (score_a=0 AND score_b=0))
+           OR (score_a=0 AND score_b=0)
+           OR (actual_map_count IS NULL AND EXISTS (SELECT 1 FROM map_predictions mp WHERE mp.match_id=matches.id AND mp.result IS NULL)))
   `)).rows;
   const missing=local.filter(m=>!items.has(String(m.external_id))).map(m=>m.external_id);
   const recovered=await pastMatchesByIds(missing);
@@ -352,6 +354,11 @@ async function syncResults(){
     try{
       const result=await settleMatch(m.id,winnerTeam.name,x);
       if(!result.alreadySettled)settled++;
+      const actualMaps=mapMarket.verifiedMapCount(x);
+      if(actualMaps!==null){
+        try{await mapMarket.settle(pool,m.id,actualMaps,x)}
+        catch(e){if(e.status!==409)throw e;warnings.push(`比赛 ${m.id} 地图数: ${e.message}`)}
+      }
     }catch(e){
       // Only known identity/result conflicts are isolated; DB/payout failures remain fatal.
       if(e.code!=='SYNC_RESULT_CONFLICT')throw e;
@@ -478,9 +485,9 @@ app.post('/api/auth/login',async(req,res)=>{
   const u=r.rows[0];delete u.password_hash;res.json({token:sign(u),user:u,message:'登录成功'});
 });
 app.get('/api/auth/me',auth,async(req,res)=>{
-  const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,
+  const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.locked_points,
     COALESCE(ROUND(100.0*COUNT(p.id) FILTER(WHERE p.result='win')/NULLIF(COUNT(p.id) FILTER(WHERE p.result IS NOT NULL),0),1),0) AS win_rate
-    FROM users u LEFT JOIN predictions p ON p.user_id=u.id WHERE u.id=$1 GROUP BY u.id`,[req.user.id]);
+    FROM users u LEFT JOIN (SELECT id,user_id,result FROM predictions UNION ALL SELECT id,user_id,result FROM map_predictions) p ON p.user_id=u.id WHERE u.id=$1 GROUP BY u.id`,[req.user.id]);
   if(!r.rowCount)return res.status(404).json({message:'用户不存在'});
   res.json({user:r.rows[0]});
 });
@@ -490,7 +497,9 @@ app.get('/api/matches',async(req,res)=>{
   const h=req.headers.authorization||'';
   if(h.startsWith('Bearer ')){try{userId=jwt.verify(h.slice(7),JWT_SECRET).id}catch{}}
   const r=await pool.query(`SELECT m.*,
-    (SELECT p.predicted_team FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_prediction
+    (SELECT p.predicted_team FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_prediction,
+    (SELECT p.result FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_result,
+    (SELECT p.points_delta FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_points_delta
     FROM matches m
 WHERE
   (m.status='open' AND m.starts_at>NOW())
@@ -517,7 +526,9 @@ app.get('/api/results',async(req,res)=>{
         score_b,
         starts_at,
         source,
-        number_of_games
+        number_of_games,
+        actual_map_count,
+        status
       FROM matches
       WHERE status='settled'
         AND winner IS NOT NULL
@@ -534,7 +545,7 @@ app.get('/api/results',async(req,res)=>{
 app.get('/api/leaderboard',async(req,res)=>{
   const r=await pool.query(`SELECT u.username,u.points,COUNT(p.id)::int AS predictions,
     COALESCE(ROUND(100.0*COUNT(p.id) FILTER(WHERE p.result='win')/NULLIF(COUNT(p.id) FILTER(WHERE p.result IS NOT NULL),0),1),0) AS win_rate
-    FROM users u LEFT JOIN predictions p ON p.user_id=u.id
+    FROM users u LEFT JOIN (SELECT id,user_id,result FROM predictions UNION ALL SELECT id,user_id,result FROM map_predictions) p ON p.user_id=u.id
     GROUP BY u.id ORDER BY u.points DESC,u.created_at ASC LIMIT 100`);
   res.json({users:r.rows});
 });
@@ -692,78 +703,8 @@ app.post('/api/predictions',auth,async(req,res)=>{
   }
 });
 app.post('/api/map-predictions',auth,async(req,res)=>{
-  const {matchId,mapCount}=req.body||{};
-  const client=await pool.connect();
-
-  try{
-    await client.query('BEGIN');
-
-    const m=(await client.query(
-      "SELECT * FROM matches WHERE id=$1 AND status='open' AND starts_at>NOW()+INTERVAL '10 minutes' FOR UPDATE",
-      [matchId]
-    )).rows[0];
-
-    if(!m){
-      throw Object.assign(
-        new Error('竞猜已锁定：比赛开始前10分钟停止预测'),
-        {status:400}
-      );
-    }
-
-    const bestOf=Number(m.number_of_games);
-
-    if(
-  ![3,5].includes(bestOf) ||
-  !Number.isInteger(Number(mapCount)) ||
-  (bestOf===3 && ![2,3].includes(Number(mapCount))) ||
-  (bestOf===5 && ![3,4,5].includes(Number(mapCount)))
-){
-      throw Object.assign(
-        new Error('无效的总地图数预测'),
-        {status:400}
-      );
-    }
-
-    const existing=(await client.query(
-      'SELECT id,result,predicted_map_count FROM map_predictions WHERE user_id=$1 AND match_id=$2 FOR UPDATE',
-      [req.user.id,matchId]
-    )).rows[0];
-
-    if(existing?.result){
-      throw Object.assign(
-        new Error('该地图数预测已经结算，不能修改'),
-        {status:409}
-      );
-    }
-
-    if(existing){
-      await client.query(
-        'UPDATE map_predictions SET predicted_map_count=$1 WHERE id=$2',
-        [Number(mapCount),existing.id]
-      );
-    }else{
-      await client.query(
-        'INSERT INTO map_predictions(user_id,match_id,predicted_map_count) VALUES($1,$2,$3)',
-        [req.user.id,matchId,Number(mapCount)]
-      );
-    }
-
-    await client.query('COMMIT');
-
-    res.json({
-      ok:true,
-      predicted_map_count:Number(mapCount),
-      message:`已预测总地图数：${mapCount} 张`
-    });
-
-  }catch(e){
-    await client.query('ROLLBACK');
-    res.status(e.status||500).json({
-      message:e.status?e.message:'地图数预测失败'
-    });
-  }finally{
-    client.release();
-  }
+  try{res.json(await mapMarket.place(pool,req.user.id,req.body||{}))}
+  catch(e){res.status(e.status||500).json({message:e.status?e.message:'地图数预测失败'})}
 });
 app.get('/api/predictions/me',auth,async(req,res)=>{
   const r=await pool.query(`SELECT p.id,p.match_id,p.predicted_team,p.result,p.points_delta,p.stake_points,
@@ -781,6 +722,10 @@ app.get('/api/map-predictions/me',auth,async(req,res)=>{
         mp.predicted_map_count,
         mp.result,
         mp.points_delta,
+        mp.stake_points,
+        mp.odds_at_prediction,
+        mp.payout_points,
+        m.actual_map_count,
         mp.created_at,
         m.event_name,
         m.team_a,
@@ -808,7 +753,7 @@ app.get('/api/admin/stats',auth,admin,async(req,res)=>{
     (SELECT COUNT(*)::int FROM users) users,
     (SELECT COUNT(*)::int FROM matches) matches,
     (SELECT COUNT(*)::int FROM matches WHERE status='open') open_matches,
-    (SELECT COUNT(*)::int FROM predictions) predictions,
+    ((SELECT COUNT(*) FROM predictions)+(SELECT COUNT(*) FROM map_predictions))::int predictions,
     (SELECT COUNT(*)::int FROM matches WHERE source='pandascore') pandascore_matches
   `);
 
@@ -966,7 +911,7 @@ app.get('/api/admin/debug/canceled-settlements',auth,admin,async(req,res)=>{
 });
 app.get('/api/admin/users',auth,admin,async(req,res)=>{
   const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.locked_points,u.created_at,COUNT(p.id)::int predictions
-    FROM users u LEFT JOIN predictions p ON p.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 500`);
+    FROM users u LEFT JOIN (SELECT id,user_id FROM predictions UNION ALL SELECT id,user_id FROM map_predictions) p ON p.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC LIMIT 500`);
   res.json({users:r.rows});
 });
 app.post('/api/admin/users/:id/points',auth,admin,async(req,res)=>{
@@ -1046,6 +991,16 @@ const r=await pool.query(`
 res.status(201).json({match:r.rows[0]});
 
 });
+for(const [action,handler] of Object.entries({
+  'map-odds':(req)=>mapMarket.setOdds(pool,req.params.id,req.body?.odds),
+  'map-result':(req)=>mapMarket.settle(pool,req.params.id,req.body?.mapCount),
+  'map-unsettle':(req)=>mapMarket.undo(pool,req.params.id)
+})){
+  app.post('/api/admin/matches/:id/'+action,auth,admin,async(req,res)=>{
+    try{res.json(await handler(req))}
+    catch(e){res.status(e.status||500).json({message:e.status?e.message:'地图数操作失败'})}
+  });
+}
 app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
   try{const r=await settleMatch(req.params.id,(req.body||{}).winner);res.json({message:'比赛已结算',...r})}
   catch(e){
@@ -1146,6 +1101,8 @@ app.post('/api/admin/matches/:id/unsettle',auth,admin,async(req,res)=>{
       );
     }
 
+    await mapMarket.undoLocked(client,m.id);
+
     await client.query(
       `UPDATE matches
        SET
@@ -1206,7 +1163,7 @@ app.delete('/api/admin/matches/:id',auth,admin,async(req,res)=>{
 
     const predictionCount=Number(
       (await client.query(
-        'SELECT COUNT(*) AS count FROM predictions WHERE match_id=$1',
+        'SELECT ((SELECT COUNT(*) FROM predictions WHERE match_id=$1)+(SELECT COUNT(*) FROM map_predictions WHERE match_id=$1)) AS count',
         [m.id]
       )).rows[0].count||0
     );

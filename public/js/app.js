@@ -570,45 +570,7 @@ ${!locked && m.status!=='settled' && !m.winner ? `
     </label>
   </div>
 ` : ''}
-${
-  !locked && m.status!=='settled' && !m.winner
-    ? `
-      <div class="map-predict-box">
-        <div class="map-predict-title">总地图数预测</div>
-
-        <div class="map-predict-options">
-          ${
-            Number(m.number_of_games)===3
-              ? `
-                <button type="button"
-  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===2?'selected':''}"
-  onclick="selectMapCount(2,this)">2 张</button>
-
-<button type="button"
-  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===3?'selected':''}"
-  onclick="selectMapCount(3,this)">3 张</button>
-              `
-              : Number(m.number_of_games)===5
-                ? `
-                  <button type="button"
-  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===3?'selected':''}"
-  onclick="selectMapCount(3,this)">3 张</button>
-
-<button type="button"
-  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===4?'selected':''}"
-  onclick="selectMapCount(4,this)">4 张</button>
-
-<button type="button"
-  class="btn btn-secondary ${Number(mapPrediction?.predicted_map_count)===5?'selected':''}"
-  onclick="selectMapCount(5,this)">5 张</button>
-                `
-                : `<span>暂无可预测地图数</span>`
-          }
-        </div>
-      </div>
-    `
-    : ''
-}
+${renderMapMarket(m,mapPrediction)}
 <div class="match-insight">
   <div>
     <span>我的预测</span>
@@ -627,9 +589,9 @@ ${
       ${
         (m.status==='settled' || m.winner) && m.user_prediction
           ? (
-              m.user_prediction===m.winner
-                ? '+50'
-                : '+0'
+              m.user_result
+                ? pointsLabel(m.user_points_delta)
+                : '待结算'
             )
           : '—'
       }
@@ -675,46 +637,50 @@ if(!autoRefresh){
 }
 
 window.openMatchDetail=openMatchDetail;
+function mapChoices(m){return Number(m.number_of_games)===3?[2,3]:Number(m.number_of_games)===5?[3,4,5]:[]}
+function pointsLabel(n){return Number(n)>0?'+'+Number(n):String(Number(n)||0)}
+function renderMapMarket(m,p){
+  const options=mapChoices(m);
+  if(!options.length&&!p)return '';
+  const open=m.status==='open'&&!m.winner&&!isPredictionLocked(m.starts_at)&&!p?.result;
+  const actual=m.actual_map_count??p?.actual_map_count;
+  return `<div class="map-predict-box">
+    <div class="map-predict-title">总地图数预测 · BO${Number(m.number_of_games)}</div>
+    <p>仅使用娱乐积分。猜中返还包含本金，按下注时锁定赔率向下取整；猜错扣除下注积分。</p>
+    ${open?`<label>地图数下注积分：
+      <input id="mapStakePointsInput" type="number" min="1" max="1000000" step="1"
+        value="${Number(p?.stake_points)>0?Number(p.stake_points):''}" placeholder="请输入积分" style="max-width:160px">
+    </label>
+    <div class="map-predict-options">${options.map(n=>{
+      const odds=Number(m['map_odds_'+n]),enabled=Number.isFinite(odds)&&odds>=1;
+      return `<button type="button" class="btn btn-secondary ${Number(p?.predicted_map_count)===n?'selected':''}"
+        ${enabled?'':'disabled'} onclick="selectMapCount(${n},this)">
+        ${n} 张 · ${enabled?odds.toFixed(4).replace(/0+$/,'').replace(/\\.$/,''):'未开放'}</button>`;
+    }).join('')}</div>`:'<p>已锁盘</p>'}
+    ${p?`<p>我的预测：${Number(p.predicted_map_count)} 张 · 下注 ${Number(p.stake_points||0)} 积分
+      ${Number(p.odds_at_prediction)>0?' · 锁定赔率 '+Number(p.odds_at_prediction):' · 历史无下注记录'}</p>
+      <p>${p.result?(p.result==='win'?'猜中':'猜错')+' · 返还 '+Number(p.payout_points||0)+' · 盈亏 '+pointsLabel(p.points_delta):'待结算（实际地图数未确认时继续等待）'}</p>`:''}
+    <p>实际地图数：${actual==null?'待确认':Number(actual)+' 张'}</p>
+  </div>`;
+}
 async function selectMapCount(count,btn){
-  if(!state.me){
-    openAuth('login');
-    toast('请先登录');
-    return;
-  }
-
-  const detail=$('matchDetail');
-  const matchId=Number(detail?.dataset?.matchId);
-
-  if(!matchId){
-    toast('找不到比赛');
-    return;
-  }
-
-  const box=btn.closest('.map-predict-options');
-  if(!box)return;
-
-  const buttons=[...box.querySelectorAll('button')];
-  buttons.forEach(b=>b.disabled=true);
-
+  if(!state.me){openAuth('login');toast('请先登录');return}
+  const matchId=Number($('matchDetail')?.dataset?.matchId);
+  const stakePoints=Number($('mapStakePointsInput')?.value);
+  if(!matchId)return toast('找不到比赛');
+  if(!Number.isSafeInteger(stakePoints)||stakePoints<1||stakePoints>1000000)return toast('请输入 1–1000000 的整数积分');
+  const match=state.matches.find(m=>Number(m.id)===matchId);
+  const old=state.mapPredictions.find(p=>Number(p.match_id)===matchId);
+  const odds=Number(old&&Number(old.predicted_map_count)===count&&Number(old.stake_points)===stakePoints?old.odds_at_prediction:match?.['map_odds_'+count]);
+  if(!Number.isFinite(odds)||odds<1)return toast('当前赔率未开放');
+  if(!confirm(`确认预测 ${count} 张，下注 ${stakePoints} 积分，赔率 ${odds}？猜中预计返还 ${Math.floor(stakePoints*Math.round(odds*10000)/10000)} 积分（含本金）。`))return;
+  const buttons=[...btn.closest('.map-predict-options').querySelectorAll('button')];
+  const disabled=buttons.map(b=>b.disabled);buttons.forEach(b=>b.disabled=true);
   try{
-    const data=await api('/map-predictions',{
-      method:'POST',
-      body:JSON.stringify({
-        matchId,
-        mapCount:Number(count)
-      })
-    });
-
-    buttons.forEach(b=>b.classList.remove('selected'));
-    btn.classList.add('selected');
-    btn.dataset.mapCount=String(count);
-
-    toast(data.message||`已预测总地图数：${count} 张`);
-  }catch(e){
-    toast(e.message||'地图数预测失败');
-  }finally{
-    buttons.forEach(b=>b.disabled=false);
-  }
+    const data=await api('/map-predictions',{method:'POST',body:JSON.stringify({matchId,mapCount:count,stakePoints,expectedOdds:odds})});
+    state.me=data.user;toast(data.message);await loadAll();
+  }catch(e){toast(e.message||'地图数预测失败')}
+  finally{buttons.forEach((b,i)=>b.disabled=disabled[i])}
 }
 
 window.selectMapCount=selectMapCount;
@@ -769,14 +735,8 @@ function renderLeaderboard(){
     <td>${u.points}</td><td>${u.win_rate}%</td><td>${u.predictions}</td></tr>`).join('');
 }
 async function renderProfile(){
-  const {predictions}=await api('/predictions/me');
-  const mapPredictionMap=new Map(
-  (state.mapPredictions||[]).map(p=>[
-    Number(p.match_id),
-    p
-  ])
-);
-  
+  const {predictions:winnerPredictions}=await api('/predictions/me');
+  const predictions=[...winnerPredictions.map(p=>({...p,market:'winner'})),...(state.mapPredictions||[]).map(p=>({...p,market:'maps',predicted_team:'总地图数 '+p.predicted_map_count+' 张'}))];
   const totalPredictions=predictions.length;
   const winCount=predictions.filter(p=>p.result==='win').length;
   const lossCount=predictions.filter(p=>p.result==='loss').length;
@@ -831,7 +791,7 @@ const pagedPredictions=sortedPredictions.slice(
   $('profileHint').textContent=`${state.me.username} · ${state.me.points} 积分`;
   $('profileCard').innerHTML=`
     <div class="profile-top"><div><h3>${escapeHtml(state.me.username)}</h3>
-    <p>积分 ${state.me.points} · ${state.me.win_rate}% 胜率</p></div>
+    <p>可用积分 ${state.me.points} · 冻结积分 ${Number(state.me.locked_points||0)} · ${calculatedWinRate}% 胜率</p></div>
     <div class="profile-badge">${state.me.role==='admin'?'管理员':'玩家'}</div></div>
     <div class="profile-stats">
   <div class="profile-stat">
@@ -877,7 +837,7 @@ const pagedPredictions=sortedPredictions.slice(
 </div>
   <div class="history-head"><span>比赛</span><span>预测详情</span><span>结果</span></div>
  ${pagedPredictions.length?pagedPredictions.map(p=>{
-  const mapPrediction=mapPredictionMap.get(Number(p.match_id));
+  const isMaps=p.market==='maps';
 
   return `
   <div class="history-row">
@@ -895,25 +855,21 @@ const pagedPredictions=sortedPredictions.slice(
   }
 
   ${Number(p.odds_at_prediction)>0
-    ? `锁定赔率：${Number(p.odds_at_prediction).toFixed(2)}<br>`
+    ? `锁定赔率：${Number(p.odds_at_prediction)}<br>`
     : ''
   }
 
-  ${mapPrediction
-    ? `总地图数预测：${Number(mapPrediction.predicted_map_count)}张<br>`
-    : ''
-  }
-
-  实际胜者：${p.winner?escapeHtml(p.winner):'待公布'}
+  ${isMaps
+    ? '实际地图数：'+(p.actual_map_count==null?'待确认':Number(p.actual_map_count)+' 张')
+    : '实际胜者：'+(p.winner?escapeHtml(p.winner):'待公布')}
   ${p.created_at?'<br>预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}
 </span>
-    </span>
 
     <span class="prediction-status ${p.result==='win'?'win':p.result==='loss'?'loss':'pending'}">
       ${p.result==='win'
-        ? '✅ 猜中 +'+Number(p.points_delta||0)+' 积分'
+        ? '✅ 猜中 · 盈亏 '+pointsLabel(p.points_delta)+' 积分'
         : p.result==='loss'
-        ? '❌ 猜错 +'+Number(p.points_delta||0)+' 积分'
+        ? '❌ 猜错 · 盈亏 '+pointsLabel(p.points_delta)+' 积分'
         : '⏳ 待结算'
       }
     </span>

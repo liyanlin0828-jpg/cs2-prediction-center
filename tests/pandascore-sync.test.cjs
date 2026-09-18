@@ -178,3 +178,16 @@ test('settled match outside recent page can receive scores without a second payo
   assert.equal((await f.context.syncResults()).settled,0);
   assert.equal(f.state().matches[0].score_a,2);assert.equal(f.state().matches[0].score_b,1);
 });
+test('conflicting historical winner is reported without blocking subsequent settlements',async()=>{
+  const f=fixture({recent:[{...feed(),winner_id:2},feed(102)]});
+  await f.context.settleMatch(1,'Alpha',feed());
+  const result=await f.context.syncResults();
+  assert.equal(result.conflicts,1);assert.match(result.warnings[0],/比赛 1 \/ PandaScore 101/);
+  assert.equal(f.state().matches[0].winner,'Alpha');
+  assert.equal(f.state().matches[1].status,'settled');assert.equal(result.settled,1);
+});
+test('sync still propagates payout errors rather than treating them as conflicts',async()=>{
+  const f=fixture({recent:[feed(101,2,1)],predictions:[{id:1,match_id:1,user_id:1,predicted_team:'Alpha',stake_points:100,odds_at_prediction:1.8,result:null}],users:[{id:1,points:900,locked_points:100}],failPayout:true});
+  const before=structuredClone(f.state());
+  await assert.rejects(f.context.syncResults(),/payout failure/);assert.deepEqual(f.state(),before);
+});

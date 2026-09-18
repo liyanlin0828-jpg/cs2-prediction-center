@@ -10,7 +10,7 @@ function feed(id=101,scoreA=0,scoreB=0){
     opponents:[{opponent:{id:1,name:'Alpha'}},{opponent:{id:2,name:'Beta'}}],
     results:[{team_id:1,score:scoreA},{team_id:2,score:scoreB}],number_of_games:3};
 }
-function fixture({matches=[{id:1,external_id:'101',source:'pandascore',status:'running',team_a:'Alpha',team_b:'Beta',score_a:null,score_b:null}],predictions=[],users=[],recent=[],history=[],failPayout=false}={}){
+function fixture({matches=[{id:1,external_id:'101',source:'pandascore',status:'running',team_a:'Alpha',team_b:'Beta',score_a:null,score_b:null}],predictions=[],users=[],recent=[],history=[],allStatus=[],failPayout=false}={}){
   let state=structuredClone({matches,predictions,users});
   const calls=[],requests=[];
   let releases=0;
@@ -25,6 +25,16 @@ function fixture({matches=[{id:1,external_id:'101',source:'pandascore',status:'r
     if(q.startsWith('SELECT id,external_id,status,score_a'))return rows(state.matches.filter(m=>m.status!=='settled'||m.score_a==null||m.score_b==null||(m.score_a===0&&m.score_b===0)));
     if(q.startsWith('SELECT id,status FROM matches'))return rows(state.matches.filter(m=>m.external_id===params[0]));
     if(q.startsWith('SELECT * FROM predictions'))return rows(state.predictions.filter(p=>p.match_id===params[0]&&p.result==null));
+    if(q.startsWith('SELECT * FROM map_predictions'))return rows([]);
+    if(q.startsWith('UPDATE matches SET status=$1')){
+      Object.assign(state.matches.find(m=>m.id===params[1]),{status:params[0],source_status:params[0],predictions_voided_at:'now',void_reason:params[0]});return rows([]);
+    }
+    if(q.startsWith("UPDATE matches SET status='postponed'")){
+      Object.assign(state.matches.find(m=>m.id===params[0]),{status:'postponed',source_status:'postponed'});return rows([]);
+    }
+    if(q.startsWith("UPDATE matches SET status='open'")){
+      Object.assign(state.matches.find(m=>m.id===params[1]),{status:'open',source_status:'not_started',starts_at:params[0]});return rows([]);
+    }
     if(q.startsWith('UPDATE predictions')){
       Object.assign(state.predictions.find(p=>p.id===params[2]),{result:params[0],points_delta:params[1]});return rows([]);
     }
@@ -69,11 +79,11 @@ function fixture({matches=[{id:1,external_id:'101',source:'pandascore',status:'r
     requests.push(url);
     if(url.includes('filter[id]=')){
       const ids=url.split('filter[id]=')[1].split(',');
-      return history.filter(x=>ids.includes(String(x.id)));
+      return (url.startsWith('/matches?')?allStatus:history).filter(x=>ids.includes(String(x.id)));
     }
     return recent;
   };
-  const context=vm.createContext({pool,panda,Date,console,mapMarket:require('../lib/map-market')});
+  const context=vm.createContext({pool,panda,Date,console,mapMarket:require('../lib/map-market'),matchLifecycle:require('../lib/match-lifecycle')});
   // Load the actual functions without starting HTTP, timers, or production DB access.
   vm.runInContext(source.slice(source.indexOf('function oppTeam'),source.indexOf('async function saveSyncStatus')),context);
   return {context,calls,requests,state:()=>state,releases:()=>releases};
@@ -190,4 +200,27 @@ test('sync still propagates payout errors rather than treating them as conflicts
   const f=fixture({recent:[feed(101,2,1)],predictions:[{id:1,match_id:1,user_id:1,predicted_team:'Alpha',stake_points:100,odds_at_prediction:1.8,result:null}],users:[{id:1,points:900,locked_points:100}],failPayout:true});
   const before=structuredClone(f.state());
   await assert.rejects(f.context.syncResults(),/payout failure/);assert.deepEqual(f.state(),before);
+});
+test('all-status lookup recovers cancellation omitted from past without fabricating a winner',async()=>{
+  const f=fixture({allStatus:[{id:101,status:'canceled'}]});
+  await f.context.syncResults();assert.equal(f.state().matches[0].status,'canceled');assert.ok(f.state().matches[0].predictions_voided_at);
+  assert.ok(f.requests.some(u=>u.startsWith('/matches?')&&u.endsWith('101')));
+});
+test('all-status lookup pauses postponed match and later confirmed date reopens it',async()=>{
+  const allStatus=[{id:101,status:'postponed'}],f=fixture({allStatus});
+  await f.context.syncResults();assert.equal(f.state().matches[0].status,'postponed');
+  Object.assign(allStatus[0],{...feed(),status:'not_started',begin_at:'2099-01-01'});
+  await f.context.syncResults();assert.equal(f.state().matches[0].status,'open');
+});
+test('refunded match cannot receive winner payout from later corrected finished feed',async()=>{
+  const f=fixture({recent:[feed()]});f.state().matches[0].predictions_voided_at='2026-01-01';
+  const before=structuredClone(f.state());const result=await f.context.syncResults();
+  assert.equal(result.conflicts,1);assert.deepEqual(f.state(),before);
+  await assert.rejects(f.context.settleMatch(1,'Alpha'),/已退分/);
+});
+test('correctly typed running and upcoming feeds still protect terminal rows',async()=>{
+  for(const [status,fn] of [['running','syncRunning'],['not_started','syncUpcoming']]){
+    const f=fixture({recent:[{...feed(),status}]});f.state().matches[0].status='settled';
+    assert.equal((await f.context[fn]()).skipped,1);assert.equal(f.state().matches[0].status,'settled');
+  }
 });

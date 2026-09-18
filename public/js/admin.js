@@ -176,7 +176,7 @@ function renderMatches(rows){
     <td>${m.id}</td><td>${esc(m.event_name)}</td>
     <td><strong>${esc(m.team_a)}</strong> vs <strong>${esc(m.team_b)}</strong></td>
     <td>${new Date(m.starts_at).toLocaleString('zh-CN')}</td>
-    <td>${esc(m.status)}${m.winner?` · ${esc(m.winner)}`:''}</td>
+    <td>${esc(({open:'未开始',running:'进行中',settled:'已结算',canceled:'已取消',postponed:'已延期'})[m.status]||m.status)}${m.winner?` · ${esc(m.winner)}`:''}${m.predictions_voided_at?' · 已退本金':''}</td>
     <td><span class="source-badge">${esc(m.source||'manual')}</span></td>
     <td><div class="action-row">
  ${(m.status==='settled' || m.winner)
@@ -187,11 +187,18 @@ function renderMatches(rows){
       onclick="unsettle(${m.id})"
     >撤销结算</button>
   `
-  : `
+  : m.predictions_voided_at?'已退分，预测关闭':m.status==='postponed'?'延期暂停中':`
     <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_a).replace(/"/g,'&quot;')})">${esc(m.team_a)} 胜</button>
     <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">${esc(m.team_b)} 胜</button>
   `
 }
+  ${!m.predictions_voided_at&&m.status!=='settled'&&!m.winner?`
+    <button class="mini-btn" onclick="changeLifecycle(${m.id},'cancel')">取消并退本金</button>
+    ${m.status==='postponed'?`
+      <button class="mini-btn" onclick="changeLifecycle(${m.id},'refund-postponed')">延期退本金</button>
+      ${m.source==='manual'?`<button class="mini-btn" onclick="resumeMatch(${m.id})">设置新时间并恢复</button>`:''}
+    `:m.status!=='canceled'?`<button class="mini-btn" onclick="changeLifecycle(${m.id},'postpone')">延期保留下注</button>`:''}
+  `:''}
   ${[3,5].includes(Number(m.number_of_games))?`<button class="mini-btn" onclick="manageMaps(${m.id})">地图数${m.actual_map_count==null?' · 待确认':' · '+Number(m.actual_map_count)+' 张'}</button>`:''}
   ${m.source==='manual' && m.status!=='settled'
     ? `<button class="mini-btn" onclick="deleteManualMatch(${m.id})">删除</button>`
@@ -281,6 +288,27 @@ window.manageMaps=function(id){
   };
   if($('undoMapsBtn'))$('undoMapsBtn').onclick=()=>{
     if(confirm('确认收回已返还的地图预测积分，并恢复冻结？胜负结算保持不变。'))perform('map-unsettle');
+  };
+};
+window.changeLifecycle=async(id,action)=>{
+  const m=adminMatches.find(x=>Number(x.id)===Number(id));if(!m)return;
+  const description=action==='postpone'
+    ? '暂停预测，保留两类下注和冻结积分'
+    : '退还两类预测的未结算本金，并永久关闭本场预测（不计输赢）';
+  if(!confirm(`${m.team_a} vs ${m.team_b}：确认${description}？`))return;
+  try{const r=await api(`/admin/matches/${id}/${action}`,{method:'POST'});await refreshAll();toast(r.message)}catch(e){toast(e.message)}
+};
+window.resumeMatch=id=>{
+  document.getElementById('resumeMatchDialog')?.remove();
+  const dialog=document.createElement('dialog');dialog.id='resumeMatchDialog';dialog.setAttribute('aria-label','恢复延期比赛');
+  dialog.style.cssText='background:#152033;color:#fff;padding:24px;border-radius:12px;max-width:90vw';
+  dialog.innerHTML='<form><h2>恢复延期比赛</h2><label>新开赛时间 <input name="startsAt" type="datetime-local" required></label><p>原下注及锁定赔率保留。</p><button type="submit">确认恢复</button> <button type="button">关闭</button><p role="status"></p></form>';
+  document.body.appendChild(dialog);dialog.showModal();
+  dialog.querySelector('[type="button"]').onclick=()=>dialog.remove();
+  dialog.querySelector('form').onsubmit=async e=>{
+    e.preventDefault();const button=dialog.querySelector('[type="submit"]');button.disabled=true;
+    try{const startsAt=new Date(dialog.querySelector('input').value).toISOString();const r=await api(`/admin/matches/${id}/resume`,{method:'POST',body:JSON.stringify({startsAt})});await refreshAll();dialog.remove();toast(r.message)}
+    catch(err){dialog.querySelector('[role="status"]').textContent=err.message;button.disabled=false}
   };
 };
 window.grantPoints=async function(userId){

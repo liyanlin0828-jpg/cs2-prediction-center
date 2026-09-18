@@ -13,10 +13,10 @@ function fixture({points=1000,locked=0,picks=[],failUpdate=false}={}){
       if(q==='COMMIT'){active=false;return rows([])}
       if(q==='ROLLBACK'){state=snapshot;active=false;return rows([])}
       const m=state.match,u=state.user;
-      if(q.startsWith('SELECT * FROM matches')||q.startsWith('SELECT id FROM matches'))return rows(q.includes("status='open'")&&(m.status!=='open'||m.winner||m.locked)?[]:[m]);
+      if(q.startsWith('SELECT * FROM matches')||q.startsWith('SELECT id FROM matches'))return rows(q.includes("status='open'")&&(m.status!=='open'||m.winner||m.locked||m.predictions_voided_at)?[]:[m]);
       if(q.startsWith('SELECT id,username'))return rows([u]);
       if(q.startsWith('SELECT * FROM map_predictions WHERE user_id'))return rows(state.picks.filter(x=>x.user_id===p[0]&&x.match_id===p[1]));
-      if(q.startsWith('SELECT * FROM map_predictions WHERE match_id'))return rows(state.picks.filter(x=>x.match_id===p[0]&&(q.includes('IS NOT NULL')?x.result!=null:x.result==null)));
+      if(q.startsWith('SELECT * FROM map_predictions WHERE match_id'))return rows(state.picks.filter(x=>x.match_id===p[0]&&(q.includes('result IN')?['win','loss'].includes(x.result):x.result==null)));
       if(q.startsWith('UPDATE users')){
         if(failUpdate)throw Error('database failed');
         if(q.includes('locked_points>=$1')){
@@ -51,6 +51,10 @@ function fixture({points=1000,locked=0,picks=[],failUpdate=false}={}){
   return {pool,state:()=>state,calls,releases:()=>releases,finished(){Object.assign(state.match,{status:'settled',winner:'Alpha'})}};
 }
 const place=(f,stakePoints=100,mapCount=2)=>market.place(f.pool,1,{matchId:1,mapCount,stakePoints});
+test('voided match rejects map betting, odds, settlement and undo',async()=>{
+  const f=fixture();f.state().match.predictions_voided_at='2026-01-01';const before=structuredClone(f.state());
+  await assert.rejects(place(f));await assert.rejects(market.setOdds(f.pool,1,{2:2,3:2}));await assert.rejects(market.settle(f.pool,1,2));await assert.rejects(market.undo(f.pool,1));assert.deepEqual(f.state(),before);
+});
 function feed(){return {id:101,status:'finished',forfeit:false,number_of_games:3,winner_id:1,opponents:[{opponent:{id:1,name:'Alpha'}},{opponent:{id:2,name:'Beta'}}],games:[1,2].map(n=>({id:n,position:n,status:'finished',forfeit:false,begin_at:'2026-01-01T12:00:00Z',end_at:'2026-01-01T13:00:00Z',winner:{id:1,type:'Team'}}))}}
 test('new map bet reserves stake and records server odds',async()=>{
   const f=fixture();const r=await place(f);

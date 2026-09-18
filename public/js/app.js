@@ -387,7 +387,7 @@ const sortedMatches=[...visibleMatches].sort((a,b)=>{
     </div>
   </article>`;
 } 
-    const locked=isPredictionLocked(m.starts_at);
+    const locked=m.status!=='open'||!!m.predictions_voided_at||isPredictionLocked(m.starts_at);
     const predictionDisabled=locked;
     const timeToStart=new Date(m.starts_at).getTime()-Date.now();
     const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
@@ -403,7 +403,7 @@ const matchStatus=m.user_prediction
       <div class="match-title-row">
         <span class="live-source${sourceClass}">${source}</span>
         ${matchStatus?`<span class="match-status ${matchStatus}">${matchStatus==='predicted'?'✓ 已预测':matchStatus==='locked'?'🔒 已锁盘':'⏳ 即将锁盘'}</span>`:''}
-        <span class="countdown ${countdownClass}">${countdown(m.starts_at)}</span>
+        <span class="countdown ${countdownClass}">${m.status==='postponed'?(m.predictions_voided_at?'已延期 · 已退本金':'已延期 · 暂停预测'):countdown(m.starts_at)}</span>
       </div>
       <div class="match-meta">
         <span>${escapeHtml(m.event_name)}</span>
@@ -423,7 +423,7 @@ const matchStatus=m.user_prediction
         </button>
       </div>
       <div class="match-footer">
-<span>${state.lang==='zh'?'按锁定赔率结算':'Settled at locked odds'}</span>
+<span>${m.predictions_voided_at?'本金已退还 · 不计输赢':m.status==='postponed'?'暂停预测 · 原下注保留':state.lang==='zh'?'按锁定赔率结算':'Settled at locked odds'}</span>
 
 <span>${
   m.user_prediction
@@ -456,7 +456,7 @@ function openMatchDetail(matchId,autoRefresh=false){
   const detail=$('matchDetail');
   const card=$('matchDetailCard');
   const matches=$('matches');
-  const locked=isPredictionLocked(m.starts_at);
+  const locked=m.status!=='open'||!!m.predictions_voided_at||isPredictionLocked(m.starts_at);
   const predictionDisabled=locked;
   const timeToStart=new Date(m.starts_at).getTime()-Date.now();
 const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
@@ -476,7 +476,7 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
   ${
     (m.status==='settled' || m.winner)
   ? (state.lang==='zh'?'比赛已结束':'Match Finished')
-  : countdown(m.starts_at)
+  : m.status==='postponed'?'已延期 · 暂停预测':countdown(m.starts_at)
   }
 </span>
     </div>
@@ -489,6 +489,8 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
 ${
   (m.status==='settled' || m.winner)
     ? `<p class="match-stage">比赛状态：已结束</p>`
+    : m.status==='postponed'
+      ? `<p class="match-stage">比赛已延期：${m.predictions_voided_at?'本金已退还，本场预测关闭':'原下注和冻结积分保留，等待新赛程'}</p>`
     : (m.status==='running' || m.source_status==='running')
       ? `<p class="match-stage">比赛状态：进行中</p>`
       : `<p class="match-stage">比赛状态：未开始</p>`
@@ -642,7 +644,7 @@ function pointsLabel(n){return Number(n)>0?'+'+Number(n):String(Number(n)||0)}
 function renderMapMarket(m,p){
   const options=mapChoices(m);
   if(!options.length&&!p)return '';
-  const open=m.status==='open'&&!m.winner&&!isPredictionLocked(m.starts_at)&&!p?.result;
+  const open=m.status==='open'&&!m.winner&&!m.predictions_voided_at&&!isPredictionLocked(m.starts_at)&&!p?.result;
   const actual=m.actual_map_count??p?.actual_map_count;
   return `<div class="map-predict-box">
     <div class="map-predict-title">总地图数预测 · BO${Number(m.number_of_games)}</div>
@@ -659,7 +661,7 @@ function renderMapMarket(m,p){
     }).join('')}</div>`:'<p>已锁盘</p>'}
     ${p?`<p>我的预测：${Number(p.predicted_map_count)} 张 · 下注 ${Number(p.stake_points||0)} 积分
       ${Number(p.odds_at_prediction)>0?' · 锁定赔率 '+Number(p.odds_at_prediction):' · 历史无下注记录'}</p>
-      <p>${p.result?(p.result==='win'?'猜中':'猜错')+' · 返还 '+Number(p.payout_points||0)+' · 盈亏 '+pointsLabel(p.points_delta):'待结算（实际地图数未确认时继续等待）'}</p>`:''}
+      <p>${p.result==='refunded'?'已退本金 '+Number(p.refund_points||0)+' 积分 · 不计输赢':p.result?(p.result==='win'?'猜中':'猜错')+' · 返还 '+Number(p.payout_points||0)+' · 盈亏 '+pointsLabel(p.points_delta):m.status==='postponed'?'延期暂停，原下注保留':'待结算（实际地图数未确认时继续等待）'}</p>`:''}
     <p>实际地图数：${actual==null?'待确认':Number(actual)+' 张'}</p>
   </div>`;
 }
@@ -741,6 +743,7 @@ async function renderProfile(){
   const winCount=predictions.filter(p=>p.result==='win').length;
   const lossCount=predictions.filter(p=>p.result==='loss').length;
   const pendingCount=predictions.filter(p=>!p.result).length;
+  const refundCount=predictions.filter(p=>p.result==='refunded').length;
   const settledCount=winCount+lossCount;
   const calculatedWinRate=settledCount
     ? ((winCount/settledCount)*100).toFixed(1)
@@ -749,6 +752,7 @@ const filteredPredictions=predictions.filter(p=>{
   if(state.historyFilter==='pending')return !p.result;
   if(state.historyFilter==='win')return p.result==='win';
   if(state.historyFilter==='loss')return p.result==='loss';
+  if(state.historyFilter==='refunded')return p.result==='refunded';
   return true;
 });
   const searchTerm=state.historySearch.trim().toLowerCase();
@@ -829,6 +833,7 @@ const pagedPredictions=sortedPredictions.slice(
 <button type="button" class="history-filter ${state.historyFilter==='pending'?'active':''}" data-history-filter="pending">待结算 ${pendingCount}</button>
 <button type="button" class="history-filter ${state.historyFilter==='win'?'active':''}" data-history-filter="win">猜中 ${winCount}</button>
 <button type="button" class="history-filter ${state.historyFilter==='loss'?'active':''}" data-history-filter="loss">猜错 ${lossCount}</button>
+<button type="button" class="history-filter ${state.historyFilter==='refunded'?'active':''}" data-history-filter="refunded">已退本金 ${refundCount}</button>
 
 <select class="history-sort" id="historySort">
   <option value="desc" ${state.historySort==='desc'?'selected':''}>最新预测</option>
@@ -859,7 +864,7 @@ const pagedPredictions=sortedPredictions.slice(
     : ''
   }
 
-  ${isMaps
+  ${p.result==='refunded'?'退分原因：'+(p.void_reason==='postponed'?'比赛延期':'比赛取消'):isMaps
     ? '实际地图数：'+(p.actual_map_count==null?'待确认':Number(p.actual_map_count)+' 张')
     : '实际胜者：'+(p.winner?escapeHtml(p.winner):'待公布')}
   ${p.created_at?'<br>预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}
@@ -870,7 +875,8 @@ const pagedPredictions=sortedPredictions.slice(
         ? '✅ 猜中 · 盈亏 '+pointsLabel(p.points_delta)+' 积分'
         : p.result==='loss'
         ? '❌ 猜错 · 盈亏 '+pointsLabel(p.points_delta)+' 积分'
-        : '⏳ 待结算'
+        : p.result==='refunded'?'↩ 已退本金 '+Number(p.refund_points||0)+' 积分 · 不计输赢'
+        : p.status==='postponed'?'⏸ 延期暂停 · 原下注保留':'⏳ 待结算'
       }
     </span>
   </div>`;

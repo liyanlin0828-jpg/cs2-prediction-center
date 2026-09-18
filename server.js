@@ -5,6 +5,7 @@ const bcrypt=require('bcryptjs');
 const jwt=require('jsonwebtoken');
 const {Pool}=require('pg');
 const mapMarket=require('./lib/map-market');
+const matchLifecycle=require('./lib/match-lifecycle');
 
 const app=express();
 app.disable('x-powered-by');
@@ -56,6 +57,15 @@ async function syncUpcoming(){
   const items=await panda('/csgo/matches/upcoming?per_page=100&sort=begin_at');
   let inserted=0,updated=0,skipped=0;
   for(const x of items){
+    if(x.status==='postponed'||x.status==='canceled'){
+      const local=(await pool.query("SELECT id FROM matches WHERE source='pandascore' AND external_id=$1",[String(x.id)])).rows[0];
+      if(local){
+        if(x.status==='postponed')await matchLifecycle.postpone(pool,local.id,x);
+        else await matchLifecycle.refund(pool,local.id,'canceled',x);
+      }
+      skipped++;continue;
+    }
+    if(x.status!=='not_started'){skipped++;continue}
     const teams=normalizedOpponents(x);
     if(!teams||!x.begin_at){skipped++;continue}
     const r=await pool.query(`
@@ -70,6 +80,8 @@ team_a_logo,team_b_logo,source_status,match_type,number_of_games,stage_name,sync
         team_a=EXCLUDED.team_a,
         team_b=EXCLUDED.team_b,
         starts_at=EXCLUDED.starts_at,
+        status=CASE WHEN matches.status='postponed' AND EXCLUDED.starts_at>NOW()
+                         AND EXCLUDED.starts_at<>matches.starts_at THEN 'open' ELSE matches.status END,
         team_a_logo=EXCLUDED.team_a_logo,
         team_b_logo=EXCLUDED.team_b_logo,
         source_status=EXCLUDED.source_status,
@@ -78,6 +90,7 @@ team_a_logo,team_b_logo,source_status,match_type,number_of_games,stage_name,sync
         stage_name=EXCLUDED.stage_name,
         synced_at=NOW()
       WHERE matches.status NOT IN ('settled','canceled')
+        AND matches.predictions_voided_at IS NULL
       RETURNING (xmax=0) AS inserted
     `,[
       leagueLabel(x),teams.a.name,teams.b.name,x.begin_at,String(x.id),
@@ -101,6 +114,7 @@ async function settleMatch(matchId,winner,sourceMatch=null){
   [matchId]
 )).rows[0];
     if(!m)throw Object.assign(new Error('比赛不存在'),{status:404});
+    if(m.predictions_voided_at)throw Object.assign(new Error('本场预测已退分，不能再次结算'),{status:409,code:'SYNC_RESULT_CONFLICT'});
     // Validate the upstream identity against the locked local row before any writes.
     if(sourceMatch){
       const teams=normalizedOpponents(sourceMatch);
@@ -182,6 +196,7 @@ async function syncRunning(){
   let inserted=0,updated=0,skipped=0;
 
   for(const x of items){
+    if(x.status!=='running'){skipped++;continue}
     const teams=normalizedOpponents(x);
     if(!teams){
       skipped++;
@@ -228,6 +243,7 @@ $6,$7,$8,$9,$10,$11,NOW()
       
        synced_at=NOW()
       WHERE matches.status NOT IN ('settled','canceled')
+        AND matches.predictions_voided_at IS NULL
       RETURNING (xmax=0) AS inserted
     `,[
       leagueLabel(x),
@@ -298,6 +314,7 @@ async function syncResults(){
     SELECT id,external_id,status,score_a,score_b
     FROM matches
     WHERE source='pandascore' AND external_id IS NOT NULL
+      AND predictions_voided_at IS NULL
       AND (status<>'settled' OR score_a IS NULL OR score_b IS NULL
            OR (score_a=0 AND score_b=0)
            OR (actual_map_count IS NULL AND EXISTS (SELECT 1 FROM map_predictions mp WHERE mp.match_id=matches.id AND mp.result IS NULL)))
@@ -305,6 +322,15 @@ async function syncResults(){
   const missing=local.filter(m=>!items.has(String(m.external_id))).map(m=>m.external_id);
   const recovered=await pastMatchesByIds(missing);
   for(const x of recovered)items.set(String(x.id),x);
+  // The past list can omit canceled/postponed fixtures. Check unresolved IDs in the all-status list.
+  const unresolved=local.filter(m=>!items.has(String(m.external_id))&&m.status!=='settled');
+  for(let offset=0;offset<unresolved.length;offset+=100){
+    const ids=unresolved.slice(offset,offset+100).map(m=>String(m.external_id)).filter(id=>/^[1-9][0-9]*$/.test(id));
+    if(!ids.length)continue;
+    const updates=await panda('/matches?per_page=100&filter[id]='+ids.join(','));
+    if(!Array.isArray(updates)||updates.some(x=>!ids.includes(String(x.id))))throw new Error('PandaScore 未正确返回指定比赛的状态');
+    for(const x of updates)items.set(String(x.id),x);
+  }
 
   let checked=0,settled=0,skipped=0;
   const warnings=[];
@@ -314,13 +340,18 @@ async function syncResults(){
       [String(x.id)]
     )).rows[0];
     if(m)checked++;
+    if(m&&(x.status==='postponed'||x.status==='not_started')){
+      try{
+        if(x.status==='postponed')await matchLifecycle.postpone(pool,m.id,x);
+        else await matchLifecycle.resumeFromSource(pool,m.id,x);
+      }catch(e){if(e.code!=='LIFECYCLE_CONFLICT')throw e;warnings.push(`比赛 ${m.id} 状态处理: ${e.message}`)}
+      skipped++;continue;
+    }
     if(x.status==='canceled'){
       if(m){
         // Never erase an existing settlement because a later feed changes status.
-        await pool.query(`
-          UPDATE matches SET status='canceled',source_status='canceled',synced_at=NOW()
-          WHERE id=$1 AND status<>'settled' AND winner IS NULL
-        `,[m.id]);
+        try{await matchLifecycle.refund(pool,m.id,'canceled',x)}
+        catch(e){if(e.code!=='LIFECYCLE_CONFLICT')throw e;warnings.push(`比赛 ${m.id} 退分: ${e.message}`)}
       }
       skipped++;
       continue;
@@ -486,7 +517,7 @@ app.post('/api/auth/login',async(req,res)=>{
 });
 app.get('/api/auth/me',auth,async(req,res)=>{
   const r=await pool.query(`SELECT u.id,u.username,u.role,u.points,u.locked_points,
-    COALESCE(ROUND(100.0*COUNT(p.id) FILTER(WHERE p.result='win')/NULLIF(COUNT(p.id) FILTER(WHERE p.result IS NOT NULL),0),1),0) AS win_rate
+    COALESCE(ROUND(100.0*COUNT(p.id) FILTER(WHERE p.result='win')/NULLIF(COUNT(p.id) FILTER(WHERE p.result IN ('win','loss')),0),1),0) AS win_rate
     FROM users u LEFT JOIN (SELECT id,user_id,result FROM predictions UNION ALL SELECT id,user_id,result FROM map_predictions) p ON p.user_id=u.id WHERE u.id=$1 GROUP BY u.id`,[req.user.id]);
   if(!r.rowCount)return res.status(404).json({message:'用户不存在'});
   res.json({user:r.rows[0]});
@@ -504,7 +535,8 @@ app.get('/api/matches',async(req,res)=>{
 WHERE
   (m.status='open' AND m.starts_at>NOW())
   OR m.status='running'
-  OR (m.source_status='running' AND m.status NOT IN ('settled','canceled'))
+  OR m.status='postponed'
+  OR (m.source_status='running' AND m.status NOT IN ('settled','canceled','postponed'))
 ORDER BY m.starts_at
 LIMIT 100
 `,[userId]);
@@ -544,7 +576,7 @@ app.get('/api/results',async(req,res)=>{
 });
 app.get('/api/leaderboard',async(req,res)=>{
   const r=await pool.query(`SELECT u.username,u.points,COUNT(p.id)::int AS predictions,
-    COALESCE(ROUND(100.0*COUNT(p.id) FILTER(WHERE p.result='win')/NULLIF(COUNT(p.id) FILTER(WHERE p.result IS NOT NULL),0),1),0) AS win_rate
+    COALESCE(ROUND(100.0*COUNT(p.id) FILTER(WHERE p.result='win')/NULLIF(COUNT(p.id) FILTER(WHERE p.result IN ('win','loss')),0),1),0) AS win_rate
     FROM users u LEFT JOIN (SELECT id,user_id,result FROM predictions UNION ALL SELECT id,user_id,result FROM map_predictions) p ON p.user_id=u.id
     GROUP BY u.id ORDER BY u.points DESC,u.created_at ASC LIMIT 100`);
   res.json({users:r.rows});
@@ -558,7 +590,7 @@ app.post('/api/predictions',auth,async(req,res)=>{
     await client.query('BEGIN');
 
     const m=(await client.query(
-      "SELECT * FROM matches WHERE id=$1 AND status='open' AND starts_at>NOW()+INTERVAL '10 minutes' FOR UPDATE",
+      "SELECT * FROM matches WHERE id=$1 AND status='open' AND winner IS NULL AND predictions_voided_at IS NULL AND starts_at>NOW()+INTERVAL '10 minutes' FOR UPDATE",
       [matchId]
     )).rows[0];
 
@@ -707,9 +739,9 @@ app.post('/api/map-predictions',auth,async(req,res)=>{
   catch(e){res.status(e.status||500).json({message:e.status?e.message:'地图数预测失败'})}
 });
 app.get('/api/predictions/me',auth,async(req,res)=>{
-  const r=await pool.query(`SELECT p.id,p.match_id,p.predicted_team,p.result,p.points_delta,p.stake_points,
+  const r=await pool.query(`SELECT p.id,p.match_id,p.predicted_team,p.result,p.points_delta,p.stake_points,p.refund_points,p.refunded_at,
 p.odds_at_prediction,p.created_at,
-    m.event_name,m.team_a,m.team_b,m.starts_at,m.winner
+    m.event_name,m.team_a,m.team_b,m.starts_at,m.winner,m.status,m.void_reason
     FROM predictions p JOIN matches m ON m.id=p.match_id WHERE p.user_id=$1 ORDER BY p.created_at DESC`,[req.user.id]);
   res.json({predictions:r.rows});
 });
@@ -725,6 +757,10 @@ app.get('/api/map-predictions/me',auth,async(req,res)=>{
         mp.stake_points,
         mp.odds_at_prediction,
         mp.payout_points,
+        mp.refund_points,
+        mp.refunded_at,
+        m.status,
+        m.void_reason,
         m.actual_map_count,
         mp.created_at,
         m.event_name,
@@ -992,13 +1028,17 @@ res.status(201).json({match:r.rows[0]});
 
 });
 for(const [action,handler] of Object.entries({
+  'cancel':(req)=>matchLifecycle.refund(pool,req.params.id,'canceled'),
+  'postpone':(req)=>matchLifecycle.postpone(pool,req.params.id),
+  'refund-postponed':(req)=>matchLifecycle.refund(pool,req.params.id,'postponed'),
+  'resume':(req)=>matchLifecycle.resume(pool,req.params.id,req.body?.startsAt),
   'map-odds':(req)=>mapMarket.setOdds(pool,req.params.id,req.body?.odds),
   'map-result':(req)=>mapMarket.settle(pool,req.params.id,req.body?.mapCount),
   'map-unsettle':(req)=>mapMarket.undo(pool,req.params.id)
 })){
   app.post('/api/admin/matches/:id/'+action,auth,admin,async(req,res)=>{
     try{res.json(await handler(req))}
-    catch(e){res.status(e.status||500).json({message:e.status?e.message:'地图数操作失败'})}
+    catch(e){res.status(e.status||500).json({message:e.status?e.message:'比赛操作失败'})}
   });
 }
 app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
@@ -1041,7 +1081,7 @@ app.post('/api/admin/matches/:id/unsettle',auth,admin,async(req,res)=>{
       `SELECT *
        FROM predictions
        WHERE match_id=$1
-         AND result IS NOT NULL
+         AND result IN ('win','loss')
        FOR UPDATE`,
       [m.id]
     )).rows;

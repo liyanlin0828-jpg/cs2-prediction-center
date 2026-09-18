@@ -109,10 +109,10 @@ async function settleMatch(matchId,winner,sourceMatch=null){
          ![teams.a.name,teams.b.name].includes(m.team_a) ||
          ![teams.a.name,teams.b.name].includes(m.team_b) || m.team_a===m.team_b ||
          winnerTeam.name!==winner){
-        throw Object.assign(new Error('PandaScore 比赛或获胜队伍与本地记录不一致'),{status:409});
+        throw Object.assign(new Error('PandaScore 比赛或获胜队伍与本地记录不一致'),{status:409,code:'SYNC_RESULT_CONFLICT'});
       }
       if(m.status==='settled' && m.winner!==winner){
-        throw Object.assign(new Error('PandaScore 胜者与已结算结果不一致，请人工核查'),{status:409});
+        throw Object.assign(new Error('PandaScore 胜者与已结算结果不一致，请人工核查'),{status:409,code:'SYNC_RESULT_CONFLICT'});
       }
       const scores=validResultScores(sourceMatch,teams);
       // Opponent order may differ from the local A/B order.
@@ -305,6 +305,7 @@ async function syncResults(){
   for(const x of recovered)items.set(String(x.id),x);
 
   let checked=0,settled=0,skipped=0;
+  const warnings=[];
   for(const x of items.values()){
     let m=(await pool.query(
       "SELECT id,status FROM matches WHERE source='pandascore' AND external_id=$1",
@@ -348,11 +349,18 @@ async function syncResults(){
         [String(x.id)]
       )).rows[0];
     }
-    const result=await settleMatch(m.id,winnerTeam.name,x);
-    if(!result.alreadySettled)settled++;
+    try{
+      const result=await settleMatch(m.id,winnerTeam.name,x);
+      if(!result.alreadySettled)settled++;
+    }catch(e){
+      // Only known identity/result conflicts are isolated; DB/payout failures remain fatal.
+      if(e.code!=='SYNC_RESULT_CONFLICT')throw e;
+      skipped++;
+      warnings.push(`比赛 ${m.id} / PandaScore ${x.id}: ${e.message}`);
+    }
   }
   // Absence from an API page is not evidence of cancellation.
-  return {fetched:items.size,checked,settled,skipped};
+  return {fetched:items.size,checked,settled,skipped,conflicts:warnings.length,warnings};
 }
 async function saveSyncStatus({
   status,
@@ -361,6 +369,11 @@ async function saveSyncStatus({
   results=null,
   errorMessage=null
 }){
+  // Keep conflict details visible in existing sync status/history without blocking other matches.
+  if(!errorMessage && results?.warnings?.length){
+    errorMessage=`${results.warnings.length} 场结果冲突，已保留原结算，其他比赛正常同步。`+
+      results.warnings.slice(0,20).join('；');
+  }
   await pool.query(`
     UPDATE sync_status
     SET

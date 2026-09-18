@@ -76,6 +76,7 @@ team_a_logo,team_b_logo,source_status,match_type,number_of_games,stage_name,sync
         number_of_games=EXCLUDED.number_of_games,
         stage_name=EXCLUDED.stage_name,
         synced_at=NOW()
+      WHERE matches.status NOT IN ('settled','canceled')
       RETURNING (xmax=0) AS inserted
     `,[
       leagueLabel(x),teams.a.name,teams.b.name,x.begin_at,String(x.id),
@@ -84,12 +85,13 @@ x.match_type||null,
 x.number_of_games||null,
 x.tournament?.name||null
     ]);
-    if(r.rows[0]?.inserted)inserted++;else updated++;
+    if(!r.rows.length)skipped++;
+    else if(r.rows[0].inserted)inserted++;else updated++;
   }
   return {fetched:items.length,inserted,updated,skipped};
 }
 
-async function settleMatch(matchId,winner){
+async function settleMatch(matchId,winner,sourceMatch=null){
   const client=await pool.connect();
   try{
     await client.query('BEGIN');
@@ -98,7 +100,36 @@ async function settleMatch(matchId,winner){
   [matchId]
 )).rows[0];
     if(!m)throw Object.assign(new Error('比赛不存在'),{status:404});
-    if(m.status==='settled')return {settledPredictions:0,alreadySettled:true};
+    // Validate the upstream identity against the locked local row before any writes.
+    if(sourceMatch){
+      const teams=normalizedOpponents(sourceMatch);
+      const winnerTeam=teams && [teams.a,teams.b].find(t=>String(t.id)===String(sourceMatch.winner_id));
+      if(sourceMatch.status!=='finished' || !sourceMatch.winner_id || !winnerTeam ||
+         m.source!=='pandascore' || String(m.external_id)!==String(sourceMatch.id) ||
+         ![teams.a.name,teams.b.name].includes(m.team_a) ||
+         ![teams.a.name,teams.b.name].includes(m.team_b) || m.team_a===m.team_b ||
+         winnerTeam.name!==winner){
+        throw Object.assign(new Error('PandaScore 比赛或获胜队伍与本地记录不一致'),{status:409});
+      }
+      if(m.status==='settled' && m.winner!==winner){
+        throw Object.assign(new Error('PandaScore 胜者与已结算结果不一致，请人工核查'),{status:409});
+      }
+      const scores=validResultScores(sourceMatch,teams);
+      // Opponent order may differ from the local A/B order.
+      if(scores){
+        const ordered=teams.a.name===m.team_a ? scores : [scores[1],scores[0]];
+        await client.query('UPDATE matches SET score_a=$1,score_b=$2 WHERE id=$3',
+          [ordered[0],ordered[1],m.id]);
+      }
+      await client.query(
+        "UPDATE matches SET stage_name=COALESCE($1,stage_name),source_status='finished',synced_at=NOW() WHERE id=$2",
+        [sourceMatch.tournament?.name||null,m.id]
+      );
+    }
+    if(m.status==='settled'){
+      await client.query('COMMIT');
+      return {settledPredictions:0,alreadySettled:true};
+    }
     if(winner!==m.team_a&&winner!==m.team_b)throw Object.assign(new Error('获胜队伍无效'),{status:400});
     const preds=(await client.query(
   'SELECT * FROM predictions WHERE match_id=$1 AND result IS NULL FOR UPDATE',
@@ -195,6 +226,7 @@ $6,$7,$8,$9,$10,$11,NOW()
         stage_name=EXCLUDED.stage_name,
       
        synced_at=NOW()
+      WHERE matches.status NOT IN ('settled','canceled')
       RETURNING (xmax=0) AS inserted
     `,[
       leagueLabel(x),
@@ -210,7 +242,8 @@ x.number_of_games||null,
 x.tournament?.name||null
     ]);
 
-    if(r.rows[0]?.inserted)inserted++;
+    if(!r.rows.length)skipped++;
+    else if(r.rows[0].inserted)inserted++;
     else updated++;
   }
 
@@ -221,226 +254,105 @@ x.tournament?.name||null
     skipped
   };
 }
-async function syncResults(){
-  const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
-  let checked=0,settled=0,skipped=0;
-
-  const local=(await pool.query(`
-    SELECT id,external_id,status
-    FROM matches
-    WHERE source='pandascore'
-      AND external_id IS NOT NULL
-  `)).rows;
-
-  const map=new Map(local.map(m=>[String(m.external_id),m]));
-
-  for(const x of items){
-   const m=map.get(String(x.id));
-    if(m && x.tournament?.name){
-  await pool.query(
-    'UPDATE matches SET stage_name=$1 WHERE id=$2',
-    [x.tournament.name,m.id]
-  );
-}
-
-if(!m){
-  if(x.status!=='finished' || !x.begin_at || !x.winner_id){
-    continue;
-  }
-
-  const teams=normalizedOpponents(x);
-  if(!teams)continue;
-
-  const scoreMap=new Map(
-    Array.isArray(x.results)
-      ? x.results.map(r=>[String(r.team_id),Number(r.score)])
-      : []
-  );
-
-  const scoreA=scoreMap.get(String(teams.a.id));
-  const scoreB=scoreMap.get(String(teams.b.id));
-
-  if(
-    !Number.isFinite(scoreA) ||
-    !Number.isFinite(scoreB) ||
-    (scoreA===0 && scoreB===0)
-  ){
-    continue;
-  }
-
-  const winnerTeam=[teams.a,teams.b].find(
-    t=>String(t.id)===String(x.winner_id)
-  );
-
-  if(!winnerTeam)continue;
-
-  await pool.query(`
-    INSERT INTO matches(
-      event_name,
-      team_a,
-      team_b,
-      starts_at,
-      status,
-      winner,
-      source,
-      external_id,
-      team_a_logo,
-      team_b_logo,
-      source_status,
-      match_type,
-      number_of_games,
-stage_name,
-score_a,
-score_b,
-synced_at
-    )
-    VALUES(
-      $1,$2,$3,$4,'settled',$5,'pandascore',$6,
-      $7,$8,'finished',$9,$10,$11,$12,$13,NOW()
-    )
-    ON CONFLICT(source,external_id)
-WHERE external_id IS NOT NULL
-DO NOTHING
-  `,[
-    leagueLabel(x),
-    teams.a.name,
-    teams.b.name,
-    x.begin_at,
-    winnerTeam.name,
-    String(x.id),
-    teams.a.image_url||null,
-    teams.b.image_url||null,
-    x.match_type||null,
-x.number_of_games||null,
-x.tournament?.name||null,
-scoreA,
-scoreB
-  ]);
-
-  settled++;
-  continue;
-}
-    checked++;
-
-if(x.status==='canceled'){
-  await pool.query(
-    `UPDATE matches
-     SET status='canceled',
-         winner=NULL,
-         score_a=NULL,
-         score_b=NULL
-     WHERE id=$1`,
-    [m.id]
-  );
-
-  skipped++;
-  continue;
-}
-
-if(
-  x.status==='not_started' &&
-  x.begin_at &&
-  new Date(x.begin_at).getTime() < Date.now() - 24*60*60*1000
-){
-  await pool.query(
-    `UPDATE matches
-     SET status='canceled',
-         winner=NULL,
-         score_a=NULL,
-         score_b=NULL
-     WHERE id=$1`,
-    [m.id]
-  );
-
-  skipped++;
-  continue;
-}
-
-if(x.status!=='finished'){
-  skipped++;
-  continue;
-}
-
-const teams=normalizedOpponents(x);
-    if(!teams){
-      skipped++;
-      continue;
-    }
-
-    const scoreMap=new Map(
-      Array.isArray(x.results)
-        ? x.results.map(r=>[String(r.team_id),Number(r.score)])
-        : []
-    );
-
-    const scoreA=scoreMap.get(String(teams.a.id));
-    const scoreB=scoreMap.get(String(teams.b.id));
-    
-    if(
-  Number.isFinite(scoreA) &&
-  Number.isFinite(scoreB) &&
-  (scoreA>0 || scoreB>0)
-){
-      await pool.query(
-        'UPDATE matches SET score_a=$1,score_b=$2 WHERE id=$3',
-        [scoreA,scoreB,m.id]
-      );
-    }
-
-    if(m.status==='settled')continue;
-
-    if(!x.winner_id){
-      skipped++;
-      continue;
-    }
-
-    const winnerTeam=[teams.a,teams.b].find(
-      t=>String(t.id)===String(x.winner_id)
-    );
-
-    if(!winnerTeam){
-      skipped++;
-      continue;
-    }
-
-    const result=await settleMatch(m.id,winnerTeam.name);
-
-    if(!result.alreadySettled){
-      settled++;
-    }
-  }
-
-  const pastIds=new Set(items.map(x=>String(x.id)));
-
-const stale=(await pool.query(`
-  SELECT id,external_id
-  FROM matches
-  WHERE source='pandascore'
-    AND status='open'
-    AND starts_at < NOW() - INTERVAL '24 hours'
-`)).rows;
-
-for(const m of stale){
-  if(pastIds.has(String(m.external_id)))continue;
-
-  await pool.query(
-    `UPDATE matches
-     SET status='canceled',
-         winner=NULL,
-         score_a=NULL,
-         score_b=NULL
-     WHERE id=$1`,
-    [m.id]
-  );
-
-  skipped++;
-}
-  return {
-    fetched:items.length,
-    checked,
-    settled,
-    skipped
+// Missing/null/blank scores must never become zero through Number() coercion.
+function validResultScores(x,teams){
+  const results=Array.isArray(x.results)?x.results:[];
+  const read=id=>{
+    const entries=results.filter(r=>String(r.team_id)===String(id));
+    if(entries.length!==1)return null;
+    const value=entries[0].score;
+    if(typeof value!=='number' && !(typeof value==='string' && /^[0-9]+$/.test(value)))return null;
+    const score=Number(value);
+    return Number.isSafeInteger(score) && score>=0 && score<=2147483647 ? score : null;
   };
+  const a=read(teams.a.id),b=read(teams.b.id);
+  if(a===null || b===null || a===b)return null;
+  const scoreWinner=a>b?teams.a.id:teams.b.id;
+  if(String(scoreWinner)!==String(x.winner_id))return null;
+  return [a,b];
+}
+
+async function pastMatchesByIds(ids){
+  const matches=new Map();
+  const unique=[...new Set(ids.map(String))].filter(id=>/^[1-9][0-9]*$/.test(id));
+  for(let offset=0;offset<unique.length;offset+=100){
+    const batch=unique.slice(offset,offset+100);
+    const wanted=new Set(batch);
+    const items=await panda('/csgo/matches/past?per_page=100&filter[id]='+batch.join(','));
+    if(!Array.isArray(items))throw new Error('PandaScore 返回了无效的比赛列表');
+    for(const x of items){
+      if(!wanted.has(String(x.id)))throw new Error('PandaScore 未正确应用比赛 ID 过滤条件');
+      matches.set(String(x.id),x);
+    }
+  }
+  return [...matches.values()];
+}
+
+async function syncResults(){
+  const recent=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
+  if(!Array.isArray(recent))throw new Error('PandaScore 返回了无效的比赛列表');
+  const items=new Map(recent.map(x=>[String(x.id),x]));
+  // Include previously mis-canceled rows and settled rows awaiting real scores.
+  const local=(await pool.query(`
+    SELECT id,external_id,status,score_a,score_b
+    FROM matches
+    WHERE source='pandascore' AND external_id IS NOT NULL
+      AND (status<>'settled' OR score_a IS NULL OR score_b IS NULL
+           OR (score_a=0 AND score_b=0))
+  `)).rows;
+  const missing=local.filter(m=>!items.has(String(m.external_id))).map(m=>m.external_id);
+  const recovered=await pastMatchesByIds(missing);
+  for(const x of recovered)items.set(String(x.id),x);
+
+  let checked=0,settled=0,skipped=0;
+  for(const x of items.values()){
+    let m=(await pool.query(
+      "SELECT id,status FROM matches WHERE source='pandascore' AND external_id=$1",
+      [String(x.id)]
+    )).rows[0];
+    if(m)checked++;
+    if(x.status==='canceled'){
+      if(m){
+        // Never erase an existing settlement because a later feed changes status.
+        await pool.query(`
+          UPDATE matches SET status='canceled',source_status='canceled',synced_at=NOW()
+          WHERE id=$1 AND status<>'settled' AND winner IS NULL
+        `,[m.id]);
+      }
+      skipped++;
+      continue;
+    }
+    const teams=normalizedOpponents(x);
+    const winnerTeam=teams && [teams.a,teams.b].find(t=>String(t.id)===String(x.winner_id));
+    if(x.status!=='finished' || !x.winner_id || !winnerTeam){
+      skipped++;
+      continue;
+    }
+    if(!m){
+      if(!x.begin_at){skipped++;continue}
+      // Insert as locked, then use the same transactional settlement path.
+      // A concurrent importer may already have inserted this external ID.
+      await pool.query(`
+        INSERT INTO matches(
+          event_name,team_a,team_b,starts_at,status,source,external_id,
+          team_a_logo,team_b_logo,source_status,match_type,number_of_games,stage_name,synced_at
+        ) VALUES($1,$2,$3,$4,'running','pandascore',$5,$6,$7,'finished',$8,$9,$10,NOW())
+        ON CONFLICT(source,external_id) WHERE external_id IS NOT NULL DO NOTHING
+      `,[
+        leagueLabel(x),teams.a.name,teams.b.name,x.begin_at,String(x.id),
+        teams.a.image_url||null,teams.b.image_url||null,x.match_type||null,
+        x.number_of_games||null,x.tournament?.name||null
+      ]);
+      m=(await pool.query(
+        "SELECT id,status FROM matches WHERE source='pandascore' AND external_id=$1",
+        [String(x.id)]
+      )).rows[0];
+    }
+    const result=await settleMatch(m.id,winnerTeam.name,x);
+    if(!result.alreadySettled)settled++;
+  }
+  // Absence from an API page is not evidence of cancellation.
+  return {fetched:items.size,checked,settled,skipped};
 }
 async function saveSyncStatus({
   status,
@@ -570,7 +482,7 @@ app.get('/api/matches',async(req,res)=>{
 WHERE
   (m.status='open' AND m.starts_at>NOW())
   OR m.status='running'
-  OR m.source_status='running'
+  OR (m.source_status='running' AND m.status NOT IN ('settled','canceled'))
 ORDER BY m.starts_at
 LIMIT 100
 `,[userId]);
@@ -949,7 +861,7 @@ if(!local){
   return res.status(404).json({message:'找不到对应的 PandaScore 比赛'});
 }
 
-const items=await panda('/csgo/matches/past?per_page=100&sort=-end_at');
+const items=await pastMatchesByIds([local.external_id]);
 
 const match=items.find(
   x=>String(x.id)===String(local.external_id)
@@ -957,7 +869,7 @@ const match=items.find(
 
 if(!match){
   return res.status(404).json({
-    message:'这场比赛不在 PandaScore 最近 100 场历史数据中'
+    message:'PandaScore 暂未返回这场比赛的历史数据'
   });
 }
 

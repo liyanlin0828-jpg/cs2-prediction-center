@@ -199,6 +199,7 @@ function renderMatches(rows){
       ${m.source==='manual'?`<button class="mini-btn" onclick="resumeMatch(${m.id})">设置新时间并恢复</button>`:''}
     `:m.status!=='canceled'?`<button class="mini-btn" onclick="changeLifecycle(${m.id},'postpone')">延期保留下注</button>`:''}
   `:''}
+  <button class="mini-btn" onclick="auditPredictions(${m.id})">核对预测</button>
   ${[3,5].includes(Number(m.number_of_games))?`<button class="mini-btn" onclick="manageMaps(${m.id})">地图数${m.actual_map_count==null?' · 待确认':' · '+Number(m.actual_map_count)+' 张'}</button>`:''}
   ${m.source==='manual' && m.status!=='settled'
     ? `<button class="mini-btn" onclick="deleteManualMatch(${m.id})">删除</button>`
@@ -237,6 +238,17 @@ function renderUsers(rows){
     <td>${new Date(u.created_at).toLocaleString('zh-CN')}</td>
   </tr>`).join('');
 }
+window.auditPredictions=async function(id){
+  try{
+    const data=await api(`/admin/matches/${id}/prediction-audit`);
+    document.getElementById('predictionAuditDialog')?.remove();
+    const dialog=document.createElement('dialog');dialog.id='predictionAuditDialog';
+    dialog.setAttribute('aria-label','比赛预测核对');
+    dialog.style.cssText='width:min(850px,90vw);max-height:85vh;overflow:auto;background:#152033;color:#fff;padding:24px;border-radius:12px';
+    dialog.innerHTML=`<h2>比赛 ${Number(id)} · 预测核对</h2><p>只读记录；本金为 0 的旧版预测撤销时按原积分变化反向恢复。余额为查询时快照。</p><table><thead><tr><th>用户</th><th>类型／选择</th><th>结果</th><th>本金</th><th>原积分变化</th><th>可用／冻结</th></tr></thead><tbody>${data.predictions.map(p=>`<tr><td>${esc(p.username)}（${Number(p.user_id)}）</td><td>${p.market==='winner'?'胜负':'地图数'} · ${esc(p.selection)}</td><td>${esc(p.result||'待结算')}</td><td>${Number(p.stake_points||0)}</td><td>${Number(p.points_delta||0)}</td><td>${Number(p.points)}／${Number(p.locked_points)}</td></tr>`).join('')||'<tr><td colspan="6">本场没有预测记录</td></tr>'}</tbody></table><button type="button">关闭</button>`;
+    document.body.appendChild(dialog);dialog.showModal();dialog.querySelector('button').onclick=()=>dialog.remove();
+  }catch(e){toast(e.message)}
+};
 window.manageMaps=function(id){
   const m=adminMatches.find(x=>Number(x.id)===Number(id));
   if(!m)return;

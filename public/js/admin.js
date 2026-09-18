@@ -177,7 +177,7 @@ function renderMatches(rows){
     <td>${esc(m.status)}${m.winner?` · ${esc(m.winner)}`:''}</td>
     <td><span class="source-badge">${esc(m.source||'manual')}</span></td>
     <td><div class="action-row">
- ${m.status==='settled'
+ ${(m.status==='settled' || m.winner)
   ? `
     <span>已结算</span>
     <button

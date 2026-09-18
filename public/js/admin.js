@@ -2,6 +2,7 @@ const token=localStorage.getItem('cs2_token');
 const $=id=>document.getElementById(id);
 let syncHistoryExpanded=false;
 let syncHistoryRows=[];
+let adminMatches=[];
 const api=async(path,options={})=>{
   const res=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`,...(options.headers||{})}});
   const data=await res.json().catch(()=>({}));
@@ -170,6 +171,7 @@ function renderSyncHistory(rows){
   }
 }
 function renderMatches(rows){
+  adminMatches=rows;
   $('matchesBody').innerHTML=rows.map(m=>`<tr>
     <td>${m.id}</td><td>${esc(m.event_name)}</td>
     <td><strong>${esc(m.team_a)}</strong> vs <strong>${esc(m.team_b)}</strong></td>
@@ -190,6 +192,7 @@ function renderMatches(rows){
     <button class="mini-btn win" onclick="settle(${m.id},${JSON.stringify(m.team_b).replace(/"/g,'&quot;')})">${esc(m.team_b)} 胜</button>
   `
 }
+  ${[3,5].includes(Number(m.number_of_games))?`<button class="mini-btn" onclick="manageMaps(${m.id})">地图数${m.actual_map_count==null?' · 待确认':' · '+Number(m.actual_map_count)+' 张'}</button>`:''}
   ${m.source==='manual' && m.status!=='settled'
     ? `<button class="mini-btn" onclick="deleteManualMatch(${m.id})">删除</button>`
     : ''}
@@ -227,6 +230,59 @@ function renderUsers(rows){
     <td>${new Date(u.created_at).toLocaleString('zh-CN')}</td>
   </tr>`).join('');
 }
+window.manageMaps=function(id){
+  const m=adminMatches.find(x=>Number(x.id)===Number(id));
+  if(!m)return;
+  document.getElementById('mapMarketDialog')?.remove();
+  const options=Number(m.number_of_games)===3?[2,3]:[3,4,5];
+  const editable=m.status==='open'&&!m.winner&&new Date(m.starts_at).getTime()>Date.now()+600000;
+  const dialog=document.createElement('dialog');
+  dialog.id='mapMarketDialog';
+  dialog.setAttribute('aria-label','总地图数管理');
+  dialog.style.cssText='width:min(480px,90vw);max-height:85vh;overflow:auto;background:#152033;color:#fff;border:1px solid #53647b;border-radius:12px;padding:24px';
+  dialog.innerHTML=`<form id="mapMarketForm">
+    <h2>总地图数 · BO${Number(m.number_of_games)}</h2>
+    <p>${esc(m.team_a)} vs ${esc(m.team_b)}</p>
+    <p>已有下注保留原赔率；留空可关闭对应选项。</p>
+    ${options.map(n=>`<label style="display:block;margin:12px 0">${n} 张赔率
+      <input name="odds${n}" type="number" min="1" max="100" step="0.0001"
+        value="${m['map_odds_'+n]==null?'':Number(m['map_odds_'+n])}" ${editable?'':'disabled'}>
+    </label>`).join('')}
+    ${editable?'<button class="btn" type="submit">保存赔率</button>':'<p>已锁盘，赔率不可修改。</p>'}
+    <hr><p>实际地图数：${m.actual_map_count==null?'待确认':Number(m.actual_map_count)+' 张'}</p>
+    ${m.maps_manual_review?'<p>结算已撤销，请人工核查后重新确认。</p>':''}
+    ${m.status==='settled'&&m.winner&&m.actual_map_count==null?`
+      <p>请核实实际打完的地图数。缺数据或弃赛时不要猜测。</p>
+      <label>实际地图数 <select id="actualMapCount"><option value="">请选择</option>${options.map(n=>`<option value="${n}">${n} 张</option>`).join('')}</select></label>
+      <button type="button" class="btn" id="settleMapsBtn">确认并结算地图积分</button>
+    `:''}
+    ${m.actual_map_count!=null?'<button type="button" class="btn" id="undoMapsBtn">撤销地图数结算</button>':''}
+    <p id="mapMarketMessage" role="status"></p>
+    <button type="button" class="btn btn-secondary" id="closeMapsBtn">关闭</button>
+  </form>`;
+  document.body.appendChild(dialog);dialog.showModal();
+  $('closeMapsBtn').onclick=()=>{dialog.close();dialog.remove()};
+  const perform=async(action,body)=>{
+    const buttons=[...dialog.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+    try{
+      const data=await api(`/admin/matches/${id}/${action}`,{method:'POST',body:JSON.stringify(body||{})});
+      await refreshAll();dialog.close();dialog.remove();toast(data.message);
+    }catch(e){$('mapMarketMessage').textContent=e.message;buttons.forEach(b=>b.disabled=false)}
+  };
+  $('mapMarketForm').onsubmit=e=>{
+    e.preventDefault();
+    const odds=Object.fromEntries(options.map(n=>[n,dialog.querySelector(`[name="odds${n}"]`).value||null]));
+    perform('map-odds',{odds});
+  };
+  if($('settleMapsBtn'))$('settleMapsBtn').onclick=()=>{
+    const mapCount=Number($('actualMapCount').value);
+    if(!options.includes(mapCount))return $('mapMarketMessage').textContent='请先选择实际地图数';
+    if(confirm(`已核实本场实际打了 ${mapCount} 张地图？确认后将结算地图预测积分。`))perform('map-result',{mapCount});
+  };
+  if($('undoMapsBtn'))$('undoMapsBtn').onclick=()=>{
+    if(confirm('确认收回已返还的地图预测积分，并恢复冻结？胜负结算保持不变。'))perform('map-unsettle');
+  };
+};
 window.grantPoints=async function(userId){
   const input=$(`grantPoints-${userId}`);
   const amount=Number(input?.value);

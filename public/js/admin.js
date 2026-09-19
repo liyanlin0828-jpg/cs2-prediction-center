@@ -200,7 +200,15 @@ function filterAdminMatches(rows,{search='',status='all',from='',to='',attention
     if(attention==='maps'&&!needsMaps(m))return false;
     if(attention==='postponed'&&(m.status!=='postponed'||m.predictions_voided_at))return false;
     return true;
-  }).sort((a,b)=>Date.parse(b.starts_at)-Date.parse(a.starts_at)||b.id-a.id);
+  }).sort((a,b)=>{
+    if(attention==='maps'){
+      const priority=Number(Number(b.pending_map_users)>0)-Number(Number(a.pending_map_users)>0)
+        ||Number(b.pending_map_points||0)-Number(a.pending_map_points||0);
+      if(priority)return priority;
+      return Date.parse(a.starts_at)-Date.parse(b.starts_at)||a.id-b.id;
+    }
+    return Date.parse(b.starts_at)-Date.parse(a.starts_at)||b.id-a.id;
+  });
 }
 function resetMatchFilters(){
   $('adminMatchSearch').value='';$('adminMatchStatus').value='all';$('adminDateFrom').value='';$('adminDateTo').value='';attentionFilter='all';matchPage=1;
@@ -214,7 +222,10 @@ function renderMatches(rows){
   const counts={all:rows.length,conflicts:currentConflictIds.size,maps:rows.filter(needsMaps).length,postponed:rows.filter(m=>m.status==='postponed'&&!m.predictions_voided_at).length};
   const labels={all:'全部比赛',conflicts:'最近同步冲突',maps:'地图数待确认',postponed:'延期保留下注'};
   $('matchAttention').innerHTML=Object.keys(labels).map(key=>`<button type="button" class="match-filter ${attentionFilter===key?'active':''}" data-attention="${key}" aria-pressed="${attentionFilter===key}">${labels[key]} ${counts[key]}</button>`).join('');
-  $('attentionNote').textContent='冲突取自最近一次同步报告，历史警告不代表当前仍有冲突。地图数待确认仅包含已结算的 BO3/BO5，需核实后录入。';
+  const pendingMaps=rows.filter(m=>needsMaps(m)&&Number(m.pending_map_users)>0);
+  $('attentionNote').textContent=attentionFilter==='maps'
+    ? `其中 ${pendingMaps.length} 场有未结算地图预测，本金合计 ${pendingMaps.reduce((sum,m)=>sum+Number(m.pending_map_points||0),0)} 积分。优先显示有预测的比赛，再按冻结本金从高到低、等待时间从早到晚排列。无预测的比赛保留在后面；地图数须核实后录入。`
+    : '冲突取自最近一次同步报告，历史警告不代表当前仍有冲突。地图数待确认仅包含已结算的 BO3/BO5，需核实后录入。';
   $('matchAttention').querySelectorAll('button').forEach(b=>b.onclick=()=>{resetMatchFilters();attentionFilter=b.dataset.attention;renderMatches(adminMatches)});
   const options={search:$('adminMatchSearch').value,status:$('adminMatchStatus').value,from:$('adminDateFrom').value,to:$('adminDateTo').value,attention:attentionFilter,conflicts:currentConflictIds};
   const invalid=options.from&&options.to&&options.from>options.to;
@@ -225,7 +236,7 @@ function renderMatches(rows){
   $('matchPrev').onclick=()=>{matchPage--;renderMatches(adminMatches)};$('matchNext').onclick=()=>{matchPage++;renderMatches(adminMatches)};
   $('matchesBody').innerHTML=filtered.slice((matchPage-1)*matchPageSize,matchPage*matchPageSize).map(m=>`<tr>
     <td>${m.id}${m.external_id?`<small style="display:block">PandaScore ${esc(m.external_id)}</small>`:''}</td><td>${esc(m.event_name)}</td>
-    <td><strong>${esc(m.team_a)}</strong> vs <strong>${esc(m.team_b)}</strong></td>
+    <td><strong>${esc(m.team_a)}</strong> vs <strong>${esc(m.team_b)}</strong>${needsMaps(m)?`<small style="display:block;margin-top:6px">${Number(m.pending_map_users)>0?`地图预测待结算：${Number(m.pending_map_users)} 人 · 冻结本金 ${Number(m.pending_map_points||0)} 积分`:'无未结算地图预测'}</small>`:''}</td>
     <td>${new Date(m.starts_at).toLocaleString('zh-CN')}</td>
     <td>${esc(({open:'未开始',running:'进行中',settled:'已结算',canceled:'已取消',postponed:'已延期'})[m.status]||m.status)}${m.winner?` · ${esc(m.winner)}`:''}${m.predictions_voided_at?' · 已退本金':''}</td>
     <td><span class="source-badge">${esc(m.source||'manual')}</span></td>

@@ -3,6 +3,9 @@ const $=id=>document.getElementById(id);
 let syncHistoryExpanded=false;
 let syncHistoryRows=[];
 let adminMatches=[];
+let attentionFilter='all',matchPage=1;
+let currentConflictIds=new Set();
+const matchPageSize=30;
 const api=async(path,options={})=>{
   const res=await fetch('/api'+path,{...options,headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`,...(options.headers||{})}});
   const data=await res.json().catch(()=>({}));
@@ -22,7 +25,7 @@ async function boot(){
 async function refreshAll(){
   const [stats,matches,users,health,syncHistory]=await Promise.all([
   api('/admin/stats'),
-  api('/admin/matches'),
+  loadAdminMatches(),
   api('/admin/users'),
   fetch('/api/health').then(r=>r.json()).catch(()=>({ok:false})),
   api('/admin/sync-history')
@@ -80,6 +83,7 @@ $('syncResultsStats').textContent=sync
   : '—';
 
 $('syncErrorMessage').textContent=sync?.error_message||'无';
+$('syncMatchLinks').innerHTML=conflictIds(sync?.error_message).map(id=>`<button type="button" class="mini-btn" onclick="locateMatch(${id})">定位比赛 ${id}</button>`).join('');
   let systemStatus='系统正常';
 
 if(!health.ok){
@@ -107,6 +111,7 @@ $('apiStatus').textContent=systemStatus;
   $('pandaConfigured').textContent=stats.pandascore_configured?'已连接':'未配置';
   $('pandaMatches').textContent=stats.pandascore_matches||0;
   $('autoSync').textContent=stats.pandascore_configured?`${stats.auto_sync_minutes} 分钟`:'关闭';
+  currentConflictIds=new Set(conflictIds(sync?.error_message));
   renderMatches(matches.matches);renderUsers(users.users);
   renderSyncHistory(syncHistory.history||[]);
 }
@@ -146,7 +151,7 @@ function renderSyncHistory(rows){
         结算 ${row.results_settled||0} /
         跳过 ${row.results_skipped||0}
       </td>
-      <td>${esc(row.error_message||'无')}</td>
+      <td>${esc(row.error_message||'无')}${conflictIds(row.error_message).map(id=>` <button type="button" class="mini-btn" onclick="locateMatch(${id})">定位比赛 ${id}</button>`).join('')}</td>
     </tr>
   `).join('');
 
@@ -170,10 +175,56 @@ function renderSyncHistory(rows){
     };
   }
 }
+async function loadAdminMatches(){
+  const matches=[];let cursor=null;
+  do{
+    const page=await api('/admin/matches'+(cursor?'?before='+cursor:''));
+    matches.push(...page.matches);
+    if(page.nextCursor!=null&&(!Number.isSafeInteger(Number(page.nextCursor))||Number(page.nextCursor)<=0||(cursor&&Number(page.nextCursor)>=cursor)))throw new Error('比赛分页异常，请刷新重试');
+    cursor=page.nextCursor==null?null:Number(page.nextCursor);
+  }while(cursor);
+  return {matches};
+}
+function conflictIds(message){
+  return [...new Set([...String(message||'').matchAll(/比赛\s+(\d+)\s*\/\s*PandaScore/g)].map(m=>Number(m[1])).filter(Number.isSafeInteger))];
+}
+function needsMaps(m){return m.status==='settled'&&!!m.winner&&!m.predictions_voided_at&&[3,5].includes(Number(m.number_of_games))&&m.actual_map_count==null}
+function localDate(iso){const d=new Date(iso);return Number.isFinite(d.getTime())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:''}
+function filterAdminMatches(rows,{search='',status='all',from='',to='',attention='all',conflicts=new Set()}={}){
+  const q=search.trim().toLowerCase();
+  return rows.filter(m=>{
+    if(q){const found=/^\d+$/.test(q)?String(m.id)===q||String(m.external_id)===q:`${m.team_a} ${m.team_b} ${m.event_name}`.toLowerCase().includes(q);if(!found)return false}
+    if(status==='refunded'?!m.predictions_voided_at:status!=='all'&&m.status!==status)return false;
+    const day=localDate(m.starts_at);if((from&&(!day||day<from))||(to&&(!day||day>to)))return false;
+    if(attention==='conflicts'&&!conflicts.has(Number(m.id)))return false;
+    if(attention==='maps'&&!needsMaps(m))return false;
+    if(attention==='postponed'&&(m.status!=='postponed'||m.predictions_voided_at))return false;
+    return true;
+  }).sort((a,b)=>Date.parse(b.starts_at)-Date.parse(a.starts_at)||b.id-a.id);
+}
+function resetMatchFilters(){
+  $('adminMatchSearch').value='';$('adminMatchStatus').value='all';$('adminDateFrom').value='';$('adminDateTo').value='';attentionFilter='all';matchPage=1;
+}
+window.locateMatch=id=>{
+  resetMatchFilters();$('adminMatchSearch').value=String(id);renderMatches(adminMatches);
+  $('matchManagement').scrollIntoView({block:'start'});$('adminMatchSearch').focus({preventScroll:true});
+};
 function renderMatches(rows){
   adminMatches=rows;
-  $('matchesBody').innerHTML=rows.map(m=>`<tr>
-    <td>${m.id}</td><td>${esc(m.event_name)}</td>
+  const counts={all:rows.length,conflicts:currentConflictIds.size,maps:rows.filter(needsMaps).length,postponed:rows.filter(m=>m.status==='postponed'&&!m.predictions_voided_at).length};
+  const labels={all:'全部比赛',conflicts:'最近同步冲突',maps:'地图数待确认',postponed:'延期保留下注'};
+  $('matchAttention').innerHTML=Object.keys(labels).map(key=>`<button type="button" class="match-filter ${attentionFilter===key?'active':''}" data-attention="${key}" aria-pressed="${attentionFilter===key}">${labels[key]} ${counts[key]}</button>`).join('');
+  $('attentionNote').textContent='冲突取自最近一次同步报告，历史警告不代表当前仍有冲突。地图数待确认仅包含已结算的 BO3/BO5，需核实后录入。';
+  $('matchAttention').querySelectorAll('button').forEach(b=>b.onclick=()=>{resetMatchFilters();attentionFilter=b.dataset.attention;renderMatches(adminMatches)});
+  const options={search:$('adminMatchSearch').value,status:$('adminMatchStatus').value,from:$('adminDateFrom').value,to:$('adminDateTo').value,attention:attentionFilter,conflicts:currentConflictIds};
+  const invalid=options.from&&options.to&&options.from>options.to;
+  const filtered=invalid?[]:filterAdminMatches(rows,options);
+  const pages=Math.max(1,Math.ceil(filtered.length/matchPageSize));matchPage=Math.min(matchPage,pages);
+  $('matchFilterSummary').textContent=invalid?'开始日期不能晚于结束日期':`找到 ${filtered.length} 场 · 共 ${rows.length} 场 · 第 ${matchPage} / ${pages} 页`;
+  $('matchPagination').innerHTML=`<button type="button" class="btn btn-secondary" id="matchPrev" ${matchPage===1?'disabled':''}>上一页</button><button type="button" class="btn btn-secondary" id="matchNext" ${matchPage===pages?'disabled':''}>下一页</button>`;
+  $('matchPrev').onclick=()=>{matchPage--;renderMatches(adminMatches)};$('matchNext').onclick=()=>{matchPage++;renderMatches(adminMatches)};
+  $('matchesBody').innerHTML=filtered.slice((matchPage-1)*matchPageSize,matchPage*matchPageSize).map(m=>`<tr>
+    <td>${m.id}${m.external_id?`<small style="display:block">PandaScore ${esc(m.external_id)}</small>`:''}</td><td>${esc(m.event_name)}</td>
     <td><strong>${esc(m.team_a)}</strong> vs <strong>${esc(m.team_b)}</strong></td>
     <td>${new Date(m.starts_at).toLocaleString('zh-CN')}</td>
     <td>${esc(({open:'未开始',running:'进行中',settled:'已结算',canceled:'已取消',postponed:'已延期'})[m.status]||m.status)}${m.winner?` · ${esc(m.winner)}`:''}${m.predictions_voided_at?' · 已退本金':''}</td>
@@ -204,7 +255,7 @@ function renderMatches(rows){
   ${m.source==='manual' && m.status!=='settled'
     ? `<button class="mini-btn" onclick="deleteManualMatch(${m.id})">删除</button>`
     : ''}
-</div></td></tr>`).join('');
+</div></td></tr>`).join('')||'<tr><td colspan="7">没有符合条件的比赛，请调整或清除筛选。</td></tr>';
 }
 function renderUsers(rows){
   $('usersBody').innerHTML=rows.map(u=>`<tr>
@@ -412,6 +463,9 @@ async function doSync(path,label){
 $('syncBtn').onclick=()=>doSync('/admin/sync/pandascore','未来赛事同步');
 $('syncResultsBtn').onclick=()=>doSync('/admin/sync/results','赛果同步与结算');
 $('syncAllBtn').onclick=()=>doSync('/admin/sync/all','全部同步');
-$('refreshBtn').onclick=refreshAll;
+$('refreshBtn').onclick=()=>refreshAll().catch(e=>toast(e.message));
+$('matchFilters').onsubmit=e=>e.preventDefault();
+for(const id of ['adminMatchSearch','adminMatchStatus','adminDateFrom','adminDateTo'])$(id).addEventListener('input',()=>{matchPage=1;renderMatches(adminMatches)});
+$('clearMatchFilters').onclick=()=>{resetMatchFilters();renderMatches(adminMatches)};
 $('logoutBtn').onclick=()=>{localStorage.removeItem('cs2_token');location.href='/'};
 boot();

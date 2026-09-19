@@ -51,6 +51,12 @@
   background:rgba(34,197,94,.12);
   border:1px solid rgba(34,197,94,.28);
 }
+#matchManagement{scroll-margin-top:90px}
+#matchFilters{grid-template-columns:2fr 1fr 1fr 1fr auto;margin:18px 0}
+#matchAttention{flex-wrap:wrap}
+#matchPagination{margin:12px 0}
+@media(max-width:1000px){#matchFilters{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){#matchFilters{grid-template-columns:1fr}}
 
 .source-badge:not(.win){
   color:#ff8f9b;

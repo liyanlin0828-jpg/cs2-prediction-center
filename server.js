@@ -532,12 +532,9 @@ app.get('/api/matches',async(req,res)=>{
     (SELECT p.result FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_result,
     (SELECT p.points_delta FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_points_delta
     FROM matches m
-WHERE
-  (m.status='open' AND m.starts_at>NOW())
-  OR m.status='running'
-  OR m.status='postponed'
-  OR (m.source_status='running' AND m.status NOT IN ('settled','canceled','postponed'))
-ORDER BY m.starts_at
+WHERE m.predictions_voided_at IS NULL AND m.winner IS NULL
+  AND ((m.status='open' AND m.starts_at>NOW()) OR m.status IN ('running','postponed'))
+ORDER BY CASE WHEN m.status='running' THEN 0 WHEN m.status='open' THEN 1 ELSE 2 END,m.starts_at
 LIMIT 100
 `,[userId]);
   

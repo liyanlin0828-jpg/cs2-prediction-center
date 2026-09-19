@@ -22,6 +22,14 @@ assert.deepEqual(ids({from:'2026-09-19'}),[]);
 assert.deepEqual(Array.from(c.conflictIds('比赛 422 / PandaScore 1664536: conflict; 比赛 422 / PandaScore 1664536')), [422]);
 assert.equal(c.needsMaps({...rows[1],predictions_voided_at:date}),false);
 assert.equal(c.needsMaps({...rows[1],number_of_games:1}),false);
+const pendingRows=[
+ {...rows[1],id:1,pending_map_users:0,pending_map_points:0},
+ {...rows[1],id:2,pending_map_users:1,pending_map_points:0},
+ {...rows[1],id:3,pending_map_users:2,pending_map_points:'150'},
+ {...rows[1],id:4,pending_map_users:1,pending_map_points:'200'},
+ {...rows[1],id:5,pending_map_users:1,pending_map_points:'150',starts_at:new Date(2026,8,17,12).toISOString()}
+];
+assert.deepEqual(Array.from(c.filterAdminMatches(pendingRows,{attention:'maps'}),m=>m.id),[4,5,3,2,1]);
 (async()=>{
  responses=[{matches:Array.from({length:500},(_,i)=>({id:501-i})),nextCursor:2},{matches:[{id:1}],nextCursor:null}];
  const all=await c.loadAdminMatches();assert.equal(all.matches.length,501);assert.equal(calls[1],'/admin/matches?before=2');
@@ -31,13 +39,20 @@ assert.equal(c.needsMaps({...rows[1],number_of_games:1}),false);
  if(process.env.PGLITE_TEST_MODULE){
   const {PGlite}=require(process.env.PGLITE_TEST_MODULE),db=new PGlite();
   try{
-   await db.exec('CREATE TABLE matches(id BIGINT PRIMARY KEY); INSERT INTO matches SELECT generate_series(1,1001);');
+   await db.exec(`CREATE TABLE matches(id BIGINT PRIMARY KEY); INSERT INTO matches SELECT generate_series(1,1001);
+     CREATE TABLE map_predictions(match_id BIGINT,user_id INT,stake_points INT,result TEXT);
+     INSERT INTO map_predictions VALUES (1001,1,100,NULL),(1001,2,50,NULL),(1001,3,999,'win'),(1001,4,500,'refunded'),(1000,1,0,NULL),(999,1,70,'loss');`);
    const server=fs.readFileSync(path.join(__dirname,'../server.js'),'utf8');let handler;
    const ctx=vm.createContext({pool:db,auth:()=>{},admin:()=>{},app:{get:(p,...handlers)=>handler=handlers.at(-1)}});
    vm.runInContext(server.slice(server.indexOf("app.get('/api/admin/matches',"),server.indexOf("app.post('/api/admin/matches',")),ctx);
    const results=[];let cursor,code=200;
    do{let result;await handler({query:cursor?{before:cursor}:{}},{json:r=>result=r});results.push(...result.matches);cursor=result.nextCursor}while(cursor);
    assert.equal(results.length,1001);assert.equal(new Set(results.map(r=>String(r.id))).size,1001);assert.equal(Number(results.at(-1).id),1);
+   const byId=id=>results.find(r=>Number(r.id)===id);
+   assert.equal(byId(1001).pending_map_users,2);assert.equal(Number(byId(1001).pending_map_points),150);
+   assert.equal(byId(1000).pending_map_users,1);assert.equal(Number(byId(1000).pending_map_points),0);
+   assert.equal(byId(999).pending_map_users,0);assert.equal(Number(byId(999).pending_map_points),0);
+   assert.equal(byId(1).pending_map_users,0);assert.equal(Number(byId(1).pending_map_points),0);
    for(const before of ['0','-1','abc','1.5','9007199254740992']){await handler({query:{before}},{status:s=>{code=s;return {json:()=>{}}}});assert.equal(code,400)}
    console.log('PASS: actual PostgreSQL cursor query returns all 1001 rows exactly once and rejects invalid cursors');
   }finally{await db.close()}

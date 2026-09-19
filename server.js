@@ -980,7 +980,13 @@ app.post('/api/admin/users/:id/points',auth,admin,async(req,res)=>{
 app.get('/api/admin/matches',auth,admin,async(req,res)=>{
   const before=req.query.before==null?null:Number(req.query.before);
   if(before!==null&&(!Number.isSafeInteger(before)||before<=0))return res.status(400).json({message:'无效比赛分页位置'});
-  const r=await pool.query('SELECT * FROM matches WHERE ($1::bigint IS NULL OR id<$1::bigint) ORDER BY id DESC LIMIT 501',[before]);
+  const r=await pool.query(`SELECT m.*,pending.pending_map_users,pending.pending_map_points
+    FROM (SELECT * FROM matches WHERE ($1::bigint IS NULL OR id<$1::bigint) ORDER BY id DESC LIMIT 501) m
+    LEFT JOIN LATERAL (
+      SELECT COUNT(DISTINCT user_id)::int AS pending_map_users,
+        COALESCE(SUM(stake_points),0)::bigint AS pending_map_points
+      FROM map_predictions WHERE match_id=m.id AND result IS NULL
+    ) pending ON TRUE ORDER BY m.id DESC`,[before]);
   const matches=r.rows.slice(0,500);
   res.json({matches,nextCursor:r.rows.length>500?matches.at(-1).id:null});
 });

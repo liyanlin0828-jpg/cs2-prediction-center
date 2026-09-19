@@ -197,18 +197,39 @@ if(state.results.length>6){
 function isPredictionLocked(iso){
   return new Date(iso).getTime()-Date.now()<=10*60*1000;
 }
+function isLiveMatch(m){
+  return m.status==='running'&&!m.winner&&!m.predictions_voided_at;
+}
+function isActiveMatch(m,now=Date.now()){
+  if(m.winner||m.predictions_voided_at)return false;
+  return isLiveMatch(m)||m.status==='postponed'||(m.status==='open'&&Date.parse(m.starts_at)>now);
+}
+function matchesFilter(m,filter,now=Date.now()){
+  if(filter==='finished')return m.status==='settled'&&!!m.winner;
+  if(!isActiveMatch(m,now))return false;
+  if(filter==='live')return isLiveMatch(m);
+  if(filter==='all')return true;
+  if(m.status==='postponed')return false; // Its old schedule is not a confirmed new date.
+  const start=Date.parse(m.starts_at),day=new Date(now);day.setHours(0,0,0,0);
+  if(filter==='tomorrow')day.setDate(day.getDate()+1);
+  const end=new Date(day);end.setDate(end.getDate()+1);
+  return start>=day.getTime()&&start<end.getTime();
+}
+function matchTimeLabel(m){
+  if(m.predictions_voided_at)return state.lang==='zh'?'已退本金 · 预测关闭':'Refunded · Closed';
+  if(m.status==='postponed')return state.lang==='zh'?'已延期 · 暂停预测':'Postponed';
+  if(m.status==='canceled')return state.lang==='zh'?'已取消':'Canceled';
+  if(m.status==='settled'||m.winner)return state.lang==='zh'?'比赛已结束':'Finished';
+  if(isLiveMatch(m))return state.lang==='zh'?'🔴 进行中':'🔴 Live';
+  if(Date.parse(m.starts_at)<=Date.now())return state.lang==='zh'?'等待开赛确认':'Awaiting start confirmation';
+  return countdown(m.starts_at);
+}
 function renderMatches(){
   const grid=$('matchesGrid');
   const now=Date.now();
 
-const baseMatches=
-  state.matchFilter==='finished'
-    ? state.results
-    : state.matchFilter==='live'
-      ? state.matches
-      : state.matches.filter(
-          m=>new Date(m.starts_at).getTime()>now
-        );
+const baseMatches=(state.matchFilter==='finished'?state.results:state.matches)
+  .filter(m=>matchesFilter(m,state.matchFilter,now));
 
 const searchTerm=($('matchSearch')?.value||'').trim().toLowerCase();
 
@@ -218,36 +239,8 @@ const searchedMatches=baseMatches.filter(m=>{
   const text=`${m.event_name||''} ${m.team_a||''} ${m.team_b||''}`.toLowerCase();
   return text.includes(searchTerm);
 });
-const todayStart=new Date();
-todayStart.setHours(0,0,0,0);
-
-const tomorrowStart=new Date(todayStart);
-tomorrowStart.setDate(tomorrowStart.getDate()+1);
-
-const dayAfterTomorrow=new Date(todayStart);
-dayAfterTomorrow.setDate(dayAfterTomorrow.getDate()+2);
-
-const counts={
-  all: state.matches.filter(
-    m=>new Date(m.starts_at).getTime()>Date.now()
-  ).length,
-
-  today: state.matches.filter(m=>{
-    const start=new Date(m.starts_at);
-    return start>=todayStart && start<tomorrowStart;
-  }).length,
-
-  tomorrow: state.matches.filter(m=>{
-    const start=new Date(m.starts_at);
-    return start>=tomorrowStart && start<dayAfterTomorrow;
-  }).length,
-
-  live: state.matches.filter(
-    m=>m.status==='running' || m.source_status==='running'
-  ).length,
-
-  finished: state.results.length
-};
+const counts=Object.fromEntries(['all','today','tomorrow','live','finished'].map(key=>
+  [key,(key==='finished'?state.results:state.matches).filter(m=>matchesFilter(m,key,now)).length]));
 
 document.querySelectorAll('.match-filter').forEach(btn=>{
   const key=btn.dataset.filter;
@@ -262,42 +255,7 @@ document.querySelectorAll('.match-filter').forEach(btn=>{
   btn.textContent=`${labels[key]} ${counts[key]??0}`;
 });
 
-const visibleMatches=searchedMatches.filter(m=>{
-  if(state.matchFilter==='all')return true;
-
-  const now=new Date();
-  const start=new Date(m.starts_at);
-
-  const todayStart=new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  );
-
-  const tomorrowStart=new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate()+1);
-
-  const dayAfterTomorrow=new Date(todayStart);
-  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate()+2);
-
-  if(state.matchFilter==='today'){
-    return start>=todayStart && start<tomorrowStart;
-  }
-
-  if(state.matchFilter==='tomorrow'){
-    return start>=tomorrowStart && start<dayAfterTomorrow;
-  }
-
-  if(state.matchFilter==='live'){
-    return m.status==='running' || m.source_status==='running';
-  }
-
-  if(state.matchFilter==='finished'){
-    return m.status==='settled' || !!m.winner;
-  }
-
-  return true;
-});
+const visibleMatches=searchedMatches;
   const sortDirection=$('matchSort')?.value||'asc';
 
 const sortedMatches=[...visibleMatches].sort((a,b)=>{
@@ -403,7 +361,7 @@ const matchStatus=m.user_prediction
       <div class="match-title-row">
         <span class="live-source${sourceClass}">${source}</span>
         ${matchStatus?`<span class="match-status ${matchStatus}">${matchStatus==='predicted'?'✓ 已预测':matchStatus==='locked'?'🔒 已锁盘':'⏳ 即将锁盘'}</span>`:''}
-        <span class="countdown ${countdownClass}">${m.status==='postponed'?(m.predictions_voided_at?'已延期 · 已退本金':'已延期 · 暂停预测'):countdown(m.starts_at)}</span>
+        <span class="countdown ${countdownClass}">${matchTimeLabel(m)}</span>
       </div>
       <div class="match-meta">
         <span>${escapeHtml(m.event_name)}</span>
@@ -474,9 +432,7 @@ const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
       : ''}
       <span class="countdown ${countdownClass}">
   ${
-    (m.status==='settled' || m.winner)
-  ? (state.lang==='zh'?'比赛已结束':'Match Finished')
-  : m.status==='postponed'?'已延期 · 暂停预测':countdown(m.starts_at)
+    matchTimeLabel(m)
   }
 </span>
     </div>
@@ -491,7 +447,7 @@ ${
     ? `<p class="match-stage">比赛状态：已结束</p>`
     : m.status==='postponed'
       ? `<p class="match-stage">比赛已延期：${m.predictions_voided_at?'本金已退还，本场预测关闭':'原下注和冻结积分保留，等待新赛程'}</p>`
-    : (m.status==='running' || m.source_status==='running')
+    : isLiveMatch(m)
       ? `<p class="match-stage">比赛状态：进行中</p>`
       : `<p class="match-stage">比赛状态：未开始</p>`
 }
@@ -657,7 +613,7 @@ function renderMapMarket(m,p){
       const odds=Number(m['map_odds_'+n]),enabled=Number.isFinite(odds)&&odds>=1;
       return `<button type="button" class="btn btn-secondary ${Number(p?.predicted_map_count)===n?'selected':''}"
         ${enabled?'':'disabled'} onclick="selectMapCount(${n},this)">
-        ${n} 张 · ${enabled?odds.toFixed(4).replace(/0+$/,'').replace(/\\.$/,''):'未开放'}</button>`;
+        ${n} 张 · ${enabled?odds.toFixed(4).replace(/0+$/,'').replace(/\.$/,''):'未开放'}</button>`;
     }).join('')}</div>`:'<p>已锁盘</p>'}
     ${p?`<p>我的预测：${Number(p.predicted_map_count)} 张 · 下注 ${Number(p.stake_points||0)} 积分
       ${Number(p.odds_at_prediction)>0?' · 锁定赔率 '+Number(p.odds_at_prediction):' · 历史无下注记录'}</p>

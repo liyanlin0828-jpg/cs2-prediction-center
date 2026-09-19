@@ -1206,3 +1206,16 @@ input.history-search{
   background:rgba(124,108,255,.18);
   box-shadow:0 0 0 1px rgba(124,108,255,.25);
 }
+
+@media(max-width:620px){
+  .section-head{flex-direction:column;align-items:stretch;gap:12px}
+  .match-filters{width:100%;margin-top:0}
+  .match-filter{flex:1 0 auto;white-space:nowrap;min-height:44px}
+  .match-search,.match-sort{width:100%;min-width:0;min-height:44px}
+  .match-title-row{flex-wrap:wrap;gap:8px}
+  .match-card,.match-detail-card,.team,.history-row{min-width:0}
+  .team strong,.match-meta,.history-row{overflow-wrap:anywhere}
+  #stakePointsInput,#mapStakePointsInput{max-width:100%;min-height:44px;font-size:16px}
+  .map-predict-options .btn{min-height:44px}
+  .prediction-status{white-space:normal;text-align:left}
+}

@@ -120,6 +120,11 @@
       <tbody id="usersBody"></tbody></table>
     </div>
   </section>
+  <section class="section admin-panel">
+    <div class="section-head"><div><h2>管理员操作记录</h2><p>从本功能上线后开始记录成功修改；历史操作不补造。</p></div><button id="auditRefresh" class="btn btn-secondary" type="button">刷新记录</button></div>
+    <div class="table-wrap"><table><thead><tr><th>时间</th><th>管理员</th><th>操作</th><th>对象</th><th>修改内容</th></tr></thead><tbody id="auditLogBody"></tbody></table></div>
+    <button id="auditMore" class="btn btn-secondary" type="button" hidden>加载更早记录</button>
+  </section>
 </main>
 
 <div id="toast" class="toast"></div>

@@ -7,6 +7,7 @@ const {Pool}=require('pg');
 const mapMarket=require('./lib/map-market');
 const matchLifecycle=require('./lib/match-lifecycle');
 const {auditedPool}=require('./lib/admin-audit');
+const {createNewsService}=require('./lib/news');
 
 const app=express();
 app.disable('x-powered-by');
@@ -1451,6 +1452,14 @@ console.log('[AutoSync]',{upcoming:u,running:l,results:r});
 setTimeout(run,15000);
   setInterval(run,AUTO_SYNC_MINUTES*60*1000);
 }
+const news=createNewsService(pool);
+const refreshNews=()=>news.sync().catch(e=>console.error('[News sync]',e.message));
+setTimeout(refreshNews,1000);
+setInterval(refreshNews,60*1000).unref();
+app.get('/api/news',async(req,res)=>{
+  try{void refreshNews();res.json(await news.read())}
+  catch{res.status(503).json({message:'新闻暂时无法加载，请稍后重试'})}
+});
 app.get('/admin',(req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 app.use((req,res)=>res.sendFile(path.join(__dirname,'index.html')));
 app.listen(PORT,()=>console.log(`CS2 Prediction Center V3 running on http://localhost:${PORT}`));

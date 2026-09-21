@@ -242,7 +242,7 @@ const searchedMatches=baseMatches.filter(m=>{
 const counts=Object.fromEntries(['all','today','tomorrow','live','finished'].map(key=>
   [key,(key==='finished'?state.results:state.matches).filter(m=>matchesFilter(m,key,now)).length]));
 
-document.querySelectorAll('.match-filter').forEach(btn=>{
+document.querySelectorAll('.match-filter[data-filter]').forEach(btn=>{
   const key=btn.dataset.filter;
   const labels={
     all:state.lang==='zh'?'全部':'All',
@@ -927,11 +927,11 @@ function logout(show=true){
   renderUser();$('profileCard').innerHTML='<div class="empty">请登录后查看。</div>';
   if(show)toast('已退出登录');
 }
-document.querySelectorAll('.match-filter').forEach(btn=>{
+document.querySelectorAll('.match-filter[data-filter]').forEach(btn=>{
   btn.onclick=()=>{
     state.matchFilter=btn.dataset.filter||'all';
 
-    document.querySelectorAll('.match-filter').forEach(x=>{
+    document.querySelectorAll('.match-filter[data-filter]').forEach(x=>{
       x.classList.toggle('active',x===btn);
     });
 
@@ -964,10 +964,9 @@ function applyLanguage(){
 
   document.documentElement.lang=isZh?'zh-CN':'en';
 
-  const navLinks=document.querySelectorAll('nav a');
-  if(navLinks[0])navLinks[0].textContent=isZh?'赛事':'Matches';
-  if(navLinks[1])navLinks[1].textContent=isZh?'排行榜':'Leaderboard';
-  if(navLinks[2])navLinks[2].textContent=isZh?'个人中心':'Profile';
+  for(const [href,zh,en] of [['#matches','赛事','Matches'],['#leaderboard','排行榜','Leaderboard'],['#profile','个人中心','Profile']]){
+    const link=document.querySelector(`nav a[href="${href}"]`);if(link)link.textContent=isZh?zh:en;
+  }
 
   const adminLink=$('adminLink');
   if(adminLink)adminLink.textContent=isZh?'管理后台':'Admin';

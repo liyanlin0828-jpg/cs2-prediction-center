@@ -14,6 +14,7 @@
   <div class="brand"><span class="brand-mark">CS</span><span>CS2 预测中心</span></div>
   <nav>
     <a href="#matches">赛事</a>
+    <a href="#news" id="newsNav">新闻</a>
     <a href="#leaderboard">排行榜</a>
     <a href="#profile">个人中心</a><a id="adminLink" class="hidden" href="/admin.html">管理后台</a>
     <button id="loginBtn" class="btn btn-primary">登录 / 注册</button>
@@ -38,6 +39,13 @@
     <div class="hero-stat"><strong id="heroPoints">0</strong><span>我的积分</span></div>
   </section>
 
+  <section id="news" class="section news-panel" aria-labelledby="newsTitle">
+    <div class="section-head"><div><h2 id="newsTitle">CS2 最新资讯</h2><p id="newsHint">电竞动态与官方更新 · 点击标题阅读原文</p></div>
+      <div class="news-filters" role="group" aria-label="新闻分类"><button class="match-filter active" data-news="all" aria-pressed="true">全部</button><button class="match-filter" data-news="esports" aria-pressed="false">电竞新闻</button><button class="match-filter" data-news="official" aria-pressed="false">官方公告</button></div>
+    </div>
+    <div id="newsList" class="news-grid" aria-live="polite">新闻加载中…</div>
+    <div class="news-footer"><p id="newsStatus"></p><button id="newsMore" class="btn btn-secondary" hidden>查看更多新闻</button></div>
+  </section>
   <section id="matches" class="section">
     <div class="section-head">
   <div>
@@ -114,5 +122,6 @@
 
 <div id="toast" class="toast"></div>
 <script src="js/app.js"></script>
+<script src="js/news.js"></script>
 </body>
 </html>

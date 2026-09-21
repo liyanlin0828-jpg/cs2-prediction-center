@@ -6,6 +6,7 @@ const jwt=require('jsonwebtoken');
 const {Pool}=require('pg');
 const mapMarket=require('./lib/map-market');
 const matchLifecycle=require('./lib/match-lifecycle');
+const {auditedPool}=require('./lib/admin-audit');
 
 const app=express();
 app.disable('x-powered-by');
@@ -105,8 +106,8 @@ x.tournament?.name||null
   return {fetched:items.length,inserted,updated,skipped};
 }
 
-async function settleMatch(matchId,winner,sourceMatch=null){
-  const client=await pool.connect();
+async function settleMatch(matchId,winner,sourceMatch=null,transactionPool=pool){
+  const client=await transactionPool.connect();
   try{
     await client.query('BEGIN');
   const m=(await client.query(
@@ -959,7 +960,10 @@ app.post('/api/admin/users/:id/points',auth,admin,async(req,res)=>{
     return res.status(400).json({message:'发放积分必须是大于0的整数'});
   }
 
-  const r=await pool.query(
+  const client=await auditedPool(pool,req.user.id,'grant-points','user',userId).connect();
+  try{
+  await client.query('BEGIN');
+  const r=await client.query(
     `UPDATE users
      SET points=points+$1
      WHERE id=$2
@@ -968,14 +972,17 @@ app.post('/api/admin/users/:id/points',auth,admin,async(req,res)=>{
   );
 
   if(!r.rows[0]){
+    await client.query('ROLLBACK');
     return res.status(404).json({message:'用户不存在'});
   }
-
+  await client.query('COMMIT');
   res.json({
     ok:true,
     user:r.rows[0],
     message:`已发放 ${amount} 积分`
   });
+  }catch(e){await client.query('ROLLBACK');res.status(500).json({message:'发放积分失败，未作更改'})}
+  finally{client.release()}
 });
 app.get('/api/admin/matches',auth,admin,async(req,res)=>{
   const before=req.query.before==null?null:Number(req.query.before);
@@ -989,6 +996,12 @@ app.get('/api/admin/matches',auth,admin,async(req,res)=>{
     ) pending ON TRUE ORDER BY m.id DESC`,[before]);
   const matches=r.rows.slice(0,500);
   res.json({matches,nextCursor:r.rows.length>500?matches.at(-1).id:null});
+});
+app.get('/api/admin/audit-logs',auth,admin,async(req,res)=>{
+  const before=req.query.before==null?null:Number(req.query.before);
+  if(before!==null&&(!Number.isSafeInteger(before)||before<=0))return res.status(400).json({message:'无效日志分页位置'});
+  const rows=(await pool.query('SELECT * FROM admin_audit_logs WHERE ($1::bigint IS NULL OR id<$1::bigint) ORDER BY id DESC LIMIT 51',[before])).rows;
+  res.json({logs:rows.slice(0,50),nextCursor:rows.length>50?rows[49].id:null});
 });
 app.post('/api/admin/matches',auth,admin,async(req,res)=>{
 const {
@@ -1035,21 +1048,21 @@ res.status(201).json({match:r.rows[0]});
 
 });
 for(const [action,handler] of Object.entries({
-  'cancel':(req)=>matchLifecycle.refund(pool,req.params.id,'canceled'),
-  'postpone':(req)=>matchLifecycle.postpone(pool,req.params.id),
-  'refund-postponed':(req)=>matchLifecycle.refund(pool,req.params.id,'postponed'),
-  'resume':(req)=>matchLifecycle.resume(pool,req.params.id,req.body?.startsAt),
-  'map-odds':(req)=>mapMarket.setOdds(pool,req.params.id,req.body?.odds),
-  'map-result':(req)=>mapMarket.settle(pool,req.params.id,req.body?.mapCount),
-  'map-unsettle':(req)=>mapMarket.undo(pool,req.params.id)
+  'cancel':(req,p)=>matchLifecycle.refund(p,req.params.id,'canceled'),
+  'postpone':(req,p)=>matchLifecycle.postpone(p,req.params.id),
+  'refund-postponed':(req,p)=>matchLifecycle.refund(p,req.params.id,'postponed'),
+  'resume':(req,p)=>matchLifecycle.resume(p,req.params.id,req.body?.startsAt),
+  'map-odds':(req,p)=>mapMarket.setOdds(p,req.params.id,req.body?.odds),
+  'map-result':(req,p)=>mapMarket.settle(p,req.params.id,req.body?.mapCount),
+  'map-unsettle':(req,p)=>mapMarket.undo(p,req.params.id)
 })){
   app.post('/api/admin/matches/:id/'+action,auth,admin,async(req,res)=>{
-    try{res.json(await handler(req))}
+    try{res.json(await handler(req,auditedPool(pool,req.user.id,action,'match',req.params.id)))}
     catch(e){res.status(e.status||500).json({message:e.status?e.message:'比赛操作失败'})}
   });
 }
 app.post('/api/admin/matches/:id/result',auth,admin,async(req,res)=>{
-  try{const r=await settleMatch(req.params.id,(req.body||{}).winner);res.json({message:'比赛已结算',...r})}
+  try{const r=await settleMatch(req.params.id,(req.body||{}).winner,null,auditedPool(pool,req.user.id,'result','match',req.params.id));res.json({message:'比赛已结算',...r})}
   catch(e){
   console.error('Manual settlement failed:',e);
   res.status(e.status||500).json({
@@ -1072,7 +1085,7 @@ app.get('/api/admin/matches/:id/prediction-audit',auth,admin,async(req,res)=>{
   }catch(e){res.status(500).json({message:'读取比赛预测核对记录失败'})}
 });
 app.post('/api/admin/matches/:id/unsettle',auth,admin,async(req,res)=>{
-  const client=await pool.connect();
+  const client=await auditedPool(pool,req.user.id,'unsettle','match',req.params.id).connect();
 
   try{
     await client.query('BEGIN');

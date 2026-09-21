@@ -43,7 +43,7 @@ assert.deepEqual(Array.from(c.filterAdminMatches(pendingRows,{attention:'maps'})
      CREATE TABLE map_predictions(match_id BIGINT,user_id INT,stake_points INT,result TEXT);
      INSERT INTO map_predictions VALUES (1001,1,100,NULL),(1001,2,50,NULL),(1001,3,999,'win'),(1001,4,500,'refunded'),(1000,1,0,NULL),(999,1,70,'loss');`);
    const server=fs.readFileSync(path.join(__dirname,'../server.js'),'utf8');let handler;
-   const ctx=vm.createContext({pool:db,auth:()=>{},admin:()=>{},app:{get:(p,...handlers)=>handler=handlers.at(-1)}});
+   const ctx=vm.createContext({pool:db,auth:()=>{},admin:()=>{},app:{get:(p,...handlers)=>{if(p==='/api/admin/matches')handler=handlers.at(-1)}}});
    vm.runInContext(server.slice(server.indexOf("app.get('/api/admin/matches',"),server.indexOf("app.post('/api/admin/matches',")),ctx);
    const results=[];let cursor,code=200;
    do{let result;await handler({query:cursor?{before:cursor}:{}},{json:r=>result=r});results.push(...result.matches);cursor=result.nextCursor}while(cursor);

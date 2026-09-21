@@ -114,6 +114,26 @@ $('apiStatus').textContent=systemStatus;
   currentConflictIds=new Set(conflictIds(sync?.error_message));
   renderMatches(matches.matches);renderUsers(users.users);
   renderSyncHistory(syncHistory.history||[]);
+  await loadAuditLogs().catch(e=>{$('auditLogBody').textContent=e.message});
+}
+let auditCursor=null;
+const auditActions={'grant-points':'发放积分',result:'胜负结算',unsettle:'撤销胜负与地图结算','map-result':'录入地图数并结算','map-unsettle':'撤销地图结算','map-odds':'修改地图赔率',cancel:'取消并退本金',postpone:'延期保留下注','refund-postponed':'延期退本金',resume:'恢复比赛'};
+function auditChanges(before,after){
+  const changes=[];
+  const fields={status:'状态',winner:'胜者',actual_map_count:'实际地图数',starts_at:'开赛时间',predictions_voided_at:'退本金时间',void_reason:'退分原因',map_odds_2:'2 张赔率',map_odds_3:'3 张赔率',map_odds_4:'4 张赔率',map_odds_5:'5 张赔率',maps_manual_review:'地图数人工复核'};
+  for(const [key,label] of Object.entries(fields))if(JSON.stringify(before.match?.[key])!==JSON.stringify(after.match?.[key]))changes.push(`${label}：${before.match?.[key]??'无'} → ${after.match?.[key]??'无'}`);
+  for(const u of after.users||[]){const old=(before.users||[]).find(x=>x.id===u.id);if(old&&(old.points!==u.points||old.locked_points!==u.locked_points))changes.push(`${u.username}（${u.id}）可用 ${old.points} → ${u.points}；冻结 ${old.locked_points} → ${u.locked_points}`)}
+  for(const [key,label] of [['predictions','胜负预测'],['maps','地图预测']]){
+    const changed=(after[key]||[]).filter(p=>{const old=(before[key]||[]).find(x=>x.id===p.id);return JSON.stringify(old)!==JSON.stringify(p)});
+    if(changed.length)changes.push(`${label}：${changed.length} 条记录变更`);
+  }
+  return changes.length?changes.join('\n'):'比赛信息已更新';
+}
+async function loadAuditLogs(more=false){
+  const data=await api('/admin/audit-logs'+(more&&auditCursor?'?before='+auditCursor:''));
+  const html=data.logs.map(row=>`<tr><td>${esc(new Date(row.created_at).toLocaleString('zh-CN'))}</td><td>${esc(row.actor_name)}（${Number(row.actor_id)}）</td><td>${esc(auditActions[row.action]||row.action)}</td><td>${row.target_kind==='match'?`比赛 ${Number(row.target_id)}<br>${esc(row.before_state.match?.team_a||'')} vs ${esc(row.before_state.match?.team_b||'')}`:`用户 ${Number(row.target_id)}`}</td><td style="white-space:pre-wrap">${esc(auditChanges(row.before_state,row.after_state))}</td></tr>`).join('');
+  if(more)$('auditLogBody').insertAdjacentHTML('beforeend',html);else $('auditLogBody').innerHTML=html||'<tr><td colspan="5">暂无管理员操作记录</td></tr>';
+  auditCursor=data.nextCursor;$('auditMore').hidden=!auditCursor;
 }
 function renderSyncHistory(rows){
   const body=$('syncHistoryBody');
@@ -475,6 +495,8 @@ $('syncBtn').onclick=()=>doSync('/admin/sync/pandascore','未来赛事同步');
 $('syncResultsBtn').onclick=()=>doSync('/admin/sync/results','赛果同步与结算');
 $('syncAllBtn').onclick=()=>doSync('/admin/sync/all','全部同步');
 $('refreshBtn').onclick=()=>refreshAll().catch(e=>toast(e.message));
+$('auditRefresh').onclick=()=>loadAuditLogs().catch(e=>toast(e.message));
+$('auditMore').onclick=async()=>{const button=$('auditMore');button.disabled=true;try{await loadAuditLogs(true)}catch(e){toast(e.message)}finally{button.disabled=false}};
 $('matchFilters').onsubmit=e=>e.preventDefault();
 for(const id of ['adminMatchSearch','adminMatchStatus','adminDateFrom','adminDateTo'])$(id).addEventListener('input',()=>{matchPage=1;renderMatches(adminMatches)});
 $('clearMatchFilters').onclick=()=>{resetMatchFilters();renderMatches(adminMatches)};

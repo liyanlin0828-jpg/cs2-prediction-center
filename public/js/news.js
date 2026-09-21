@@ -9,13 +9,13 @@
    let url;try{url=new URL(item.url);if(url.protocol!=='https:')continue}catch{continue}
    const article=document.createElement('article');article.className='news-card';
    const meta=document.createElement('div');meta.className='news-meta';
-   const source=document.createElement('span');source.textContent=item.source==='hltv'?'HLTV':(en?'CS2 Official':'CS2 官方');
+   const source=document.createElement('span');source.textContent=item.source==='steam'?(en?'CS2 Official':'CS2 官方'):(data.sources.find(s=>s.id===item.source)?.label||item.source);
    const time=document.createElement('time');time.dateTime=item.publishedAt;time.textContent=new Date(item.publishedAt).toLocaleString(en?'en':'zh-CN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
    const heading=document.createElement('h3'),link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent=item.title+' ↗';heading.append(link);meta.append(source,time);article.append(meta,heading);el('newsList').append(article);
   }
   if(!items.length)el('newsList').textContent=en?'No news available yet. Please check again shortly.':'暂无资讯，稍后会自动刷新。';
   el('newsMore').hidden=items.length<=limit;
-  el('newsStatus').textContent=(en?'Last synced · ':'最近同步 · ')+data.sources.map(s=>`${s.id==='hltv'?'HLTV':(en?'Official':'官方')}：${s.successAt?new Date(s.successAt).toLocaleString(en?'en':'zh-CN'):(en?'Awaiting sync':'等待同步')}${s.stale?(en?' (update delayed)':'（更新延迟）'):''}`).join(' · ');
+  el('newsStatus').textContent=(en?'Last synced · ':'最近同步 · ')+data.sources.map(s=>`${s.id==='steam'?(en?'Official':'官方'):s.label}：${s.successAt?new Date(s.successAt).toLocaleString(en?'en':'zh-CN'):(en?'Awaiting sync':'等待同步')}${s.stale?(en?' (update delayed)':'（更新延迟）'):''}`).join(' · ');
  }
  async function load(){
   if(busy||document.hidden)return;busy=true;

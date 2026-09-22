@@ -19,7 +19,10 @@ const pool=new Pool({
   ssl:process.env.NODE_ENV==='production'?{rejectUnauthorized:false}:false
 });
 const PORT=process.env.PORT||3000;
-const JWT_SECRET=process.env.JWT_SECRET||'change-this-secret';
+const JWT_SECRET=process.env.JWT_SECRET;
+if(!JWT_SECRET?.trim()||JWT_SECRET.trim()==='change-this-secret'){
+  throw new Error('JWT_SECRET must be configured with a private, non-default value');
+}
 const PANDA_TOKEN=process.env.PANDASCORE_TOKEN||'';
 const AUTO_SYNC_MINUTES=Math.max(5,Number(process.env.AUTO_SYNC_MINUTES||15));
 const CRON_SECRET=process.env.CRON_SECRET||'';
@@ -32,7 +35,19 @@ function auth(req,res,next){
     req.user=jwt.verify(h.slice(7),JWT_SECRET);next();
   }catch{return res.status(401).json({message:'登录已过期，请重新登录'})}
 }
-function admin(req,res,next){if(req.user.role!=='admin')return res.status(403).json({message:'需要管理员权限'});next()}
+async function admin(req,res,next){
+  // A signed token proves identity, but its role may be stale after a permission change.
+  let user;
+  try{
+    user=(await pool.query('SELECT id,username,role FROM users WHERE id=$1',[req.user.id])).rows[0];
+  }catch{
+    return res.status(503).json({message:'暂时无法验证管理员权限，请稍后重试'});
+  }
+  if(!user)return res.status(401).json({message:'用户不存在，请重新登录'});
+  if(user.role!=='admin')return res.status(403).json({message:'需要管理员权限'});
+  req.user={...req.user,id:user.id,username:user.username,role:user.role};
+  next();
+}
 const validUsername=s=>/^[A-Za-z0-9_]{3,24}$/.test(s||'');
 
 async function panda(pathname){

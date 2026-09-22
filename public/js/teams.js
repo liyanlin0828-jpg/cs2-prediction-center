@@ -37,9 +37,10 @@
  const grid=document.getElementById('teamsList');if(!grid)return;
  const search=document.getElementById('teamSearch'),more=document.getElementById('teamsMore'),status=document.getElementById('teamSyncStatus'),refresh=document.getElementById('teamRefresh');
  let data={teams:[],sync:{}},limit=12,busy=false;
- function render(){const q=search.value.trim().toLowerCase();const teams=data.teams.filter(team=>[team.name,team.acronym,...team.players.map(p=>p.nickname)].join(' ').toLowerCase().includes(q));
+ const searchKey=value=>String(value||'').toLowerCase().replace(/[\s._-]+/g,'');
+ function render(){const q=searchKey(search.value);const teams=data.teams.filter(team=>[team.name,team.acronym,...(team.aliases||[]),...team.players.map(p=>p.nickname)].some(value=>searchKey(value).includes(q)));
   grid.replaceChildren(...teams.slice(0,limit).map(team=>card(team,team.name,data.sync)));if(!teams.length)grid.append(node('p',q?'没有找到匹配的战队或队员。':'暂无战队资料，首次同步可能需要稍等片刻。'));
-  more.hidden=teams.length<=limit;status.textContent=`共 ${teams.length} 支战队 · 最近成功同步：${data.sync.successAt?new Date(data.sync.successAt).toLocaleString('zh-CN'):'等待首次同步'}${data.sync.stale?' · 更新延迟':''}`;
+  more.hidden=teams.length<=limit;status.textContent=`已显示 ${Math.min(limit,teams.length)} / ${teams.length} 支战队 · 最近成功同步：${data.sync.successAt?new Date(data.sync.successAt).toLocaleString('zh-CN'):'等待首次同步'}${data.sync.stale?' · 更新延迟':''}`;
  }
  async function load(){if(busy)return;busy=true;refresh.disabled=true;try{const next=await get('/api/teams');if(!Array.isArray(next.teams))throw Error();data=next;render()}catch{status.textContent='战队资料暂时无法更新，将自动重试。'}finally{busy=false;refresh.disabled=false}}
  search.oninput=()=>{limit=12;render()};more.onclick=()=>{limit+=12;render()};refresh.onclick=load;load();

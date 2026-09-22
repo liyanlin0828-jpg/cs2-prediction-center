@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>战队资料 · CS2 预测中心</title><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/teams.css"></head>
+<body class="home-page">
+<header class="topbar"><div class="brand"><span class="brand-mark">CS</span><span>CS2 预测中心</span></div><nav><a href="/">返回首页</a><a href="/#matches">赛事</a><a href="/#news">新闻</a></nav></header>
+<main class="container"><section class="section">
+ <div class="section-head"><div><h1>战队资料与当前阵容</h1><p>网站近期参赛战队 · 数据来源 PandaScore · 服务运行时每 15 分钟检查更新</p></div><button id="teamRefresh" class="btn btn-secondary" type="button">刷新资料</button></div>
+ <p class="muted">当前阵容不代表某场比赛的已确认出场名单。转会、替补及头像资料可能存在更新延迟。</p>
+ <label for="teamSearch">搜索战队或队员</label><input id="teamSearch" class="match-search" type="search" placeholder="战队名称、简称或队员昵称" autocomplete="off">
+ <p id="teamSyncStatus" class="muted" role="status">正在加载资料…</p>
+ <div id="teamsList" class="team-profile-grid"></div>
+ <button id="teamsMore" class="btn btn-secondary" type="button" hidden>查看更多战队</button>
+</section></main><script src="/js/teams.js"></script>
+</body></html>

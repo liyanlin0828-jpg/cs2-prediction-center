@@ -8,6 +8,7 @@ const mapMarket=require('./lib/map-market');
 const matchLifecycle=require('./lib/match-lifecycle');
 const {auditedPool}=require('./lib/admin-audit');
 const {createNewsService}=require('./lib/news');
+const matchPriority=require('./lib/match-priority');
 
 const app=express();
 app.disable('x-powered-by');
@@ -544,14 +545,14 @@ app.get('/api/matches',async(req,res)=>{
   let userId=null;
   const h=req.headers.authorization||'';
   if(h.startsWith('Bearer ')){try{userId=jwt.verify(h.slice(7),JWT_SECRET).id}catch{}}
-  const r=await pool.query(`SELECT m.*,
+  const r=await pool.query(`SELECT m.*,${matchPriority.scoreSql()} AS popularity_score,
     (SELECT p.predicted_team FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_prediction,
     (SELECT p.result FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_result,
     (SELECT p.points_delta FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_points_delta
     FROM matches m
 WHERE m.predictions_voided_at IS NULL AND m.winner IS NULL
   AND ((m.status='open' AND m.starts_at>NOW()) OR m.status IN ('running','postponed'))
-ORDER BY CASE WHEN m.status='running' THEN 0 WHEN m.status='open' THEN 1 ELSE 2 END,m.starts_at
+ORDER BY ${matchPriority.orderSql(req.query?.sort)}
 LIMIT 100
 `,[userId]);
   
@@ -574,8 +575,9 @@ app.get('/api/results',async(req,res)=>{
         source,
         number_of_games,
         actual_map_count,
-        status
-      FROM matches
+        status,
+        ${matchPriority.scoreSql()} AS popularity_score
+      FROM matches m
       WHERE status='settled'
         AND winner IS NOT NULL
       ORDER BY starts_at DESC

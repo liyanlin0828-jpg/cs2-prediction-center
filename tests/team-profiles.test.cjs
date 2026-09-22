@@ -47,6 +47,9 @@ const {createTeamService,normalizeTeam,imageUrl}=require('../lib/team-profiles')
   const paged=createTeamService(pool,async url=>{const page=Number(new URL(url,'https://example.test').searchParams.get('page'));pages.push(page);return page===1?Array.from({length:100},(_,n)=>({id:2000+n,name:'NAVI Junior',players:[]})):[{id:9010,name:'Team Spirit',players:[]}];});
   await paged.sync();assert.deepEqual(pages,[1,2]);assert.ok((await paged.list()).teams.some(t=>t.name==='Team Spirit'));assert.ok(!(await paged.list()).teams.some(t=>t.name==='NAVI Junior'));
   await due();await createTeamService(pool,async()=>{throw Error('featured outage')}).sync();assert.equal((await paged.list()).sync.stale,true);assert.ok((await paged.list()).teams.some(t=>t.name==='Team Spirit'));
+  let forced=0;const startup=createTeamService(pool,async()=>{forced++;return [{id:9100,name:'Falcons',players:[]},{id:9101,name:'Team Falcons',players:Array.from({length:5},(_,n)=>({id:9200+n,name:'P'+n}))},{id:9300,name:'The Mongolz',players:[{id:9301,name:'M'}]}]});
+  await startup.sync();assert.equal(forced,0);await startup.sync({force:true});assert.equal(forced,1);
+  const finalTeams=(await startup.list()).teams;assert.equal(finalTeams.filter(t=>/falcons/i.test(t.name)).length,1);assert.equal(finalTeams.find(t=>/falcons/i.test(t.name)).id,9101);assert.ok(finalTeams.some(t=>t.name==='The Mongolz'));
   console.log('PASS: real SQL, ID matching with reversed opponents, refresh interval, single-flight, roster replacement, cache on failure, identity mismatch, atomic rollback, 100-ID batches, missing data and safe image URLs');
  }finally{await db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

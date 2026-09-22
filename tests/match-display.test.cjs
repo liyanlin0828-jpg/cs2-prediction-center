@@ -30,8 +30,9 @@ if(process.env.PGLITE_TEST_MODULE)(async()=>{
   await db.exec(`CREATE TABLE matches(id INT,status TEXT,source_status TEXT,winner TEXT,predictions_voided_at TIMESTAMPTZ,starts_at TIMESTAMPTZ);
   CREATE TABLE predictions(match_id INT,user_id INT,predicted_team TEXT,result TEXT,points_delta INT);
   INSERT INTO matches VALUES(1,'running','running',NULL,NULL,NOW()-INTERVAL '2 hours'),(2,'postponed','running',NULL,NULL,NOW()-INTERVAL '1 day'),(3,'canceled','running',NULL,NULL,NOW()),(4,'settled','running','A',NULL,NOW()),(5,'postponed','running',NULL,NOW(),NOW()),(6,'open','running',NULL,NULL,NOW()-INTERVAL '1 hour'),(7,'open','not_started',NULL,NULL,NOW()+INTERVAL '1 day');`);
+  await db.exec('ALTER TABLE matches ADD COLUMN event_name TEXT, ADD COLUMN team_a TEXT, ADD COLUMN team_b TEXT');
   const server=fs.readFileSync(path.join(__dirname,'../server.js'),'utf8');let route;
-  const ctx=vm.createContext({pool:db,app:{get:(p,h)=>route=h}});
+  const ctx=vm.createContext({pool:db,matchPriority:require('../lib/match-priority'),app:{get:(p,h)=>route=h}});
   vm.runInContext(server.slice(server.indexOf("app.get('/api/matches',"),server.indexOf("app.get('/api/results',")),ctx);
   let data;await route({headers:{}},{json:r=>data=r});
   assert.deepEqual(data.matches.map(m=>m.id),[1,7,2]);

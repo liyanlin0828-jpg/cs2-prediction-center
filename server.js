@@ -1484,8 +1484,8 @@ const teamProfiles=createTeamService(pool,async endpoint=>{
   return response.json();
 });
 if(PANDA_TOKEN){
-  const refreshTeams=()=>teamProfiles.sync().catch(e=>console.error('[Team sync]',e.message));
-  setTimeout(refreshTeams,5000);setInterval(refreshTeams,60*1000).unref();
+  const refreshTeams=(force=false)=>teamProfiles.sync({force}).catch(e=>console.error('[Team sync]',e.message));
+  setTimeout(()=>refreshTeams(true),5000);setInterval(refreshTeams,60*1000).unref();
 }
 app.get('/api/teams',async(req,res)=>{
   try{res.json(await teamProfiles.list())}catch{res.status(503).json({message:'战队资料暂时无法加载'})}

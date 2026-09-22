@@ -536,6 +536,7 @@ ${!locked && m.status!=='settled' && !m.winner ? `
   </div>
 ` : ''}
 ${renderMapMarket(m,mapPrediction)}
+<section id="matchTeamProfiles" class="team-profiles-box"></section>
 <div class="match-insight">
   <div>
     <span>我的预测</span>
@@ -588,6 +589,7 @@ ${renderMapMarket(m,mapPrediction)}
   `;
 
  detail.dataset.matchId=String(m.id);
+window.TeamProfiles?.renderMatch(m.id,$('matchTeamProfiles'));
 matches.classList.add('hidden');
 detail.classList.remove('hidden');
 

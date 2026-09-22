@@ -9,6 +9,7 @@ const matchLifecycle=require('./lib/match-lifecycle');
 const {auditedPool}=require('./lib/admin-audit');
 const {createNewsService}=require('./lib/news');
 const matchPriority=require('./lib/match-priority');
+const {createTeamService}=require('./lib/team-profiles');
 
 const app=express();
 app.disable('x-powered-by');
@@ -1476,6 +1477,22 @@ setInterval(refreshNews,60*1000).unref();
 app.get('/api/news',async(req,res)=>{
   try{void refreshNews();res.json(await news.read())}
   catch{res.status(503).json({message:'新闻暂时无法加载，请稍后重试'})}
+});
+const teamProfiles=createTeamService(pool,async endpoint=>{
+  const response=await fetch('https://api.pandascore.co'+endpoint,{headers:{Accept:'application/json',Authorization:`Bearer ${PANDA_TOKEN}`},signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw new Error('Team source HTTP '+response.status);
+  return response.json();
+});
+if(PANDA_TOKEN){
+  const refreshTeams=()=>teamProfiles.sync().catch(e=>console.error('[Team sync]',e.message));
+  setTimeout(refreshTeams,5000);setInterval(refreshTeams,60*1000).unref();
+}
+app.get('/api/teams',async(req,res)=>{
+  try{res.json(await teamProfiles.list())}catch{res.status(503).json({message:'战队资料暂时无法加载'})}
+});
+app.get('/api/matches/:id/teams',async(req,res)=>{
+  const id=Number(req.params.id);if(!Number.isSafeInteger(id)||id<=0)return res.status(400).json({message:'无效比赛'});
+  try{const data=await teamProfiles.forMatch(id);if(!data)return res.status(404).json({message:'比赛不存在'});res.json(data)}catch{res.status(503).json({message:'战队资料暂时无法加载'})}
 });
 app.get('/admin',(req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 app.use((req,res)=>res.sendFile(path.join(__dirname,'index.html')));

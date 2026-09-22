@@ -46,11 +46,13 @@ function openAuth(mode='login'){
 }
 function closeAuth(){$('authModal').classList.add('hidden')}
 async function loadAll(){
+  const requestedSort=$('matchSort')?.value||'popular';
   const [matches,leaderboard,results]=await Promise.all([
-  api('/matches'),
+  api('/matches?sort='+encodeURIComponent(requestedSort)),
   api('/leaderboard'),
   api('/results')
 ]);
+  if(requestedSort!==($('matchSort')?.value||'popular'))return loadAll();
   state.matches=matches.matches;
 state.leaderboard=leaderboard.users;
 state.results=results.results||[];
@@ -256,11 +258,16 @@ document.querySelectorAll('.match-filter[data-filter]').forEach(btn=>{
 });
 
 const visibleMatches=searchedMatches;
-  const sortDirection=$('matchSort')?.value||'asc';
+  const sortDirection=$('matchSort')?.value||'popular';
 
 const sortedMatches=[...visibleMatches].sort((a,b)=>{
   const timeA=new Date(a.starts_at).getTime();
   const timeB=new Date(b.starts_at).getTime();
+
+  if(sortDirection==='popular'){
+    const held=Number(a.status==='postponed')-Number(b.status==='postponed');
+    return held||(Number(b.popularity_score)||0)-(Number(a.popularity_score)||0)||timeA-timeB||Number(a.id)-Number(b.id);
+  }
 
   return sortDirection==='desc'
     ? timeB-timeA
@@ -946,8 +953,12 @@ if(matchSearch){
 }
 const matchSort=$('matchSort');
 if(matchSort){
-  matchSort.addEventListener('change',()=>{
-    renderMatches();
+  matchSort.addEventListener('change',async()=>{
+    const previous=matchSort.dataset.loadedSort||'popular';
+    matchSort.disabled=true;
+    try{await loadAll();matchSort.dataset.loadedSort=matchSort.value}
+    catch(e){matchSort.value=previous;renderMatches();toast(e.message)}
+    finally{matchSort.disabled=false}
   });
 }
 window.addEventListener('load',async()=>{
@@ -1003,7 +1014,10 @@ if(matchSearch)matchSearch.placeholder=isZh?'搜索战队或赛事...':'Search t
 
 const matchSort=$('matchSort');
 if(matchSort && matchSort.options.length){
-  matchSort.options[0].textContent=isZh?'最近开赛':'Starting Soon';
+  const sortLabels=isZh?{popular:'热门优先',asc:'最近开赛',desc:'最晚开赛'}:{popular:'Popular First',asc:'Starting Soon',desc:'Starting Latest'};
+  for(const option of matchSort.options)option.textContent=sortLabels[option.value]||option.textContent;
+  matchSort.setAttribute('aria-label',isZh?'赛事排序':'Match order');
+  matchSort.title=isZh?'热门优先按预设赛事与战队优先级排列，非实时人气榜':'Popular First uses curated event and team priorities, not live audience metrics';
 }
 }
 const langToggle=$('langToggle');

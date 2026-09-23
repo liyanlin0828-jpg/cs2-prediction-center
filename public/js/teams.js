@@ -11,9 +11,11 @@
  function card(profile,name,sync){
   const el=node('article',null,'team-profile-card'),head=node('div',null,'team-profile-head'),heading=node('div');
   head.append(avatar(profile?.imageUrl,name));heading.append(node('h3',profile?.name||name));
+  if(profile?.rank)heading.prepend(node('p','HLTV #'+profile.rank));
   if(profile)heading.append(node('p',[profile.acronym,region(profile.location)].filter(Boolean).join(' · ')));
   head.append(heading);el.append(head);
   if(!profile){el.append(node('p',t('暂无已同步的战队资料，请稍后刷新。','No synced team profile yet. Please check again shortly.')));return el}
+  if(profile.profileAvailable===false){el.append(node('p',t('已收录排名，暂未匹配到可靠的 PandaScore 战队资料。','Ranked team listed; a reliable PandaScore profile is not available yet.')));return el}
   if(!profile.rosterKnown||!profile.players.length)el.append(node('p',t('数据源暂未提供当前队员名单。','The source has not provided a current roster.')));
   else{
    const list=node('ul',null,'team-player-list');
@@ -41,6 +43,14 @@
  function render(){const q=searchKey(search.value);const teams=data.teams.filter(team=>[team.name,team.acronym,...(team.aliases||[]),...team.players.map(p=>p.nickname)].some(value=>searchKey(value).includes(q)));
   grid.replaceChildren(...teams.slice(0,limit).map(team=>card(team,team.name,data.sync)));if(!teams.length)grid.append(node('p',q?'没有找到匹配的战队或队员。':'暂无战队资料，首次同步可能需要稍等片刻。'));
   more.hidden=teams.length<=limit;status.textContent=`已显示 ${Math.min(limit,teams.length)} / ${teams.length} 支战队 · 最近成功同步：${data.sync.successAt?new Date(data.sync.successAt).toLocaleString('zh-CN'):'等待首次同步'}${data.sync.stale?' · 更新延迟':''}`;
+  if(data.coverage)status.textContent+=` · 已匹配资料 ${data.coverage.profiles} / ${data.coverage.total}`;
+  const rankingStatus=document.getElementById('teamRankingStatus');
+  if(rankingStatus&&data.ranking){
+   const r=data.ranking;rankingStatus.replaceChildren(node('span',`排名日期：${r.date} · `));
+   const link=node('a','查看 HLTV 原始榜单');
+   try{const url=new URL(r.sourceUrl);if(url.origin==='https://www.hltv.org'){link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';rankingStatus.append(link)}}catch{}
+   rankingStatus.append(node('span',r.failed?' · 排名自动更新暂不可用，展示已核实快照':r.stale?' · 排名更新延迟，展示历史榜单':' · HLTV 每周发布，网站每天检查更新'));
+  }
  }
  async function load(){if(busy)return;busy=true;refresh.disabled=true;try{const next=await get('/api/teams');if(!Array.isArray(next.teams))throw Error();data=next;render()}catch{status.textContent='战队资料暂时无法更新，将自动重试。'}finally{busy=false;refresh.disabled=false}}
  search.oninput=()=>{limit=12;render()};more.onclick=()=>{limit+=12;render()};refresh.onclick=load;load();

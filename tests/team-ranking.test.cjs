@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {PGlite}=require(process.env.PGLITE_TEST_MODULE||'@electric-sql/pglite');
-const {createRankingService,validate,parseRanking,indexTeams}=require('../lib/team-ranking');
+const {createRankingService,validate,parseRanking,indexTeams,queryNames}=require('../lib/team-ranking');
 const {createTeamService}=require('../lib/team-profiles');
 const seed=require('../data/hltv-top100.json');
 (async()=>{
@@ -11,6 +11,7 @@ const seed=require('../data/hltv-top100.json');
  const html=seed.teams.map(t=>`<div class="ranking-header"><span class="position wide-position">#${t.rank}</span><span class="name">${t.name.replaceAll('&','&amp;')}</span>${t.players.map(p=>`<div class="rankingNicknames"><span>${p}</span></div>`).join('')}</div><a href="/team/${t.hltvId}/team">Profile</a>`).join('');
  assert.deepEqual(parseRanking(html,seed.sourceUrl),seed);assert.throws(()=>parseRanking('<html>Blocked</html>',seed.sourceUrl));
  assert.equal(indexTeams(seed).get('spirit').rank,1);assert.equal(indexTeams(seed).get('teamspirit'),undefined);
+ assert.ok(queryNames({name:'CYBERSHOKE'}).includes('Cybershoke'));assert.ok(queryNames({name:'SINNERS'}).includes('Sinners'));assert.equal(indexTeams(seed).get('teamnemesis').name,'Nemesis');
  const academy=structuredClone(seed);academy.teams[99].name='NAVI Junior';assert.equal(indexTeams(academy).has('navijunior'),false);
  const db=new PGlite();try{
   await db.exec(fs.readFileSync(path.join(__dirname,'../db/migration_v23.sql'),'utf8'));
@@ -24,6 +25,10 @@ const seed=require('../data/hltv-top100.json');
   const result=await service.list();assert.equal(result.teams.length,100);assert.deepEqual(result.teams.map(t=>t.rank),Array.from({length:100},(_,i)=>i+1));assert.equal(result.coverage.profiles,0);assert.ok(result.teams[0].aliases.includes('Team Spirit'));
   await db.query('INSERT INTO team_profiles VALUES(1,$1,NOW())',[JSON.stringify({id:1,name:'Spirit',players:[{nickname:'donk'},{nickname:'sh1ro'}]})]);
   const filled=await service.list();assert.equal(filled.coverage.profiles,1);assert.equal(filled.teams[0].id,1);assert.equal(filled.teams[99].name,'UNiTY');
+  await db.query('INSERT INTO team_profiles VALUES(2,$1,NOW())',[JSON.stringify({id:2,name:'Team Nemesis',players:[{nickname:'WrongPlayer'}]})]);
+  assert.equal((await service.list()).teams.find(t=>t.name==='Nemesis').profileAvailable,false);
+  await db.query('UPDATE team_profiles SET data=$1 WHERE id=2',[JSON.stringify({id:2,name:'Team Nemesis',players:[{nickname:'SELLTER'},{nickname:'Sdaim'}]})]);
+  assert.equal((await service.list()).teams.find(t=>t.name==='Nemesis').id,2);
   console.log('PASS: complete top100, ranking parser, invalid/duplicate/date rejection, daily single-flight cache, source outage, ordered placeholders, Spirit alias and profile coverage');
  }finally{await db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

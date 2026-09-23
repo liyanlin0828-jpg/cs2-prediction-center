@@ -1,0 +1,1194 @@
+{
+  "date": "2026-09-21",
+  "sourceUrl": "https://www.hltv.org/ranking/teams/2026/september/21",
+  "teams": [
+    {
+      "rank": 1,
+      "name": "Spirit",
+      "hltvId": 7020,
+      "players": [
+        "sh1ro",
+        "magixx",
+        "tN1R",
+        "zont1x",
+        "donk"
+      ]
+    },
+    {
+      "rank": 2,
+      "name": "Vitality",
+      "hltvId": 9565,
+      "players": [
+        "apEX",
+        "ropz",
+        "ZywOo",
+        "flameZ",
+        "mezii"
+      ]
+    },
+    {
+      "rank": 3,
+      "name": "MOUZ",
+      "hltvId": 4494,
+      "players": [
+        "torzsi",
+        "Spinx",
+        "xertioN",
+        "PR",
+        "xelex"
+      ]
+    },
+    {
+      "rank": 4,
+      "name": "FURIA",
+      "hltvId": 8297,
+      "players": [
+        "FalleN",
+        "yuurih",
+        "YEKINDAR",
+        "KSCERATO",
+        "molodoy"
+      ]
+    },
+    {
+      "rank": 5,
+      "name": "Falcons",
+      "hltvId": 11283,
+      "players": [
+        "karrigan",
+        "NiKo",
+        "TeSeS",
+        "m0NESY",
+        "kyousuke"
+      ]
+    },
+    {
+      "rank": 6,
+      "name": "Legacy",
+      "hltvId": 12468,
+      "players": [
+        "arT",
+        "dumau",
+        "latto",
+        "n1ssim",
+        "try"
+      ]
+    },
+    {
+      "rank": 7,
+      "name": "FUT",
+      "hltvId": 13286,
+      "players": [
+        "xfl0ud",
+        "dem0n",
+        "Krabeni",
+        "cmtry",
+        "dziugss"
+      ]
+    },
+    {
+      "rank": 8,
+      "name": "G2",
+      "hltvId": 5995,
+      "players": [
+        "huNter-",
+        "NertZ",
+        "r1nkle",
+        "HeavyGod",
+        "MATYS"
+      ]
+    },
+    {
+      "rank": 9,
+      "name": "Aurora",
+      "hltvId": 11861,
+      "players": [
+        "XANTARES",
+        "woxic",
+        "Jimpphat",
+        "kyxsan",
+        "Wicadia"
+      ]
+    },
+    {
+      "rank": 10,
+      "name": "Natus Vincere",
+      "hltvId": 4608,
+      "players": [
+        "Aleksib",
+        "iM",
+        "b1t",
+        "w0nderful",
+        "makazze"
+      ]
+    },
+    {
+      "rank": 11,
+      "name": "Astralis",
+      "hltvId": 6665,
+      "players": [
+        "HooXi",
+        "phzy",
+        "jabbi",
+        "Staehr",
+        "ryu"
+      ]
+    },
+    {
+      "rank": 12,
+      "name": "MIBR",
+      "hltvId": 9215,
+      "players": [
+        "LNZ",
+        "nqz",
+        "insani",
+        "venomzera",
+        "tomaszin"
+      ]
+    },
+    {
+      "rank": 13,
+      "name": "FaZe",
+      "hltvId": 6667,
+      "players": [
+        "frozen",
+        "Twistzz",
+        "Neityu",
+        "jcobbb",
+        "JBOEN"
+      ]
+    },
+    {
+      "rank": 14,
+      "name": "B8",
+      "hltvId": 11241,
+      "players": [
+        "alex666",
+        "npl",
+        "kensizor",
+        "esenthial",
+        "s1zzi"
+      ]
+    },
+    {
+      "rank": 15,
+      "name": "BETBOOM",
+      "hltvId": 12394,
+      "players": [
+        "Boombl4",
+        "zorte",
+        "S1ren",
+        "d1Ledez",
+        "Magnojez"
+      ]
+    },
+    {
+      "rank": 16,
+      "name": "9z",
+      "hltvId": 9996,
+      "players": [
+        "max",
+        "dgt",
+        "meyern",
+        "luchov",
+        "HUASOPEEK"
+      ]
+    },
+    {
+      "rank": 17,
+      "name": "The MongolZ",
+      "hltvId": 6248,
+      "players": [
+        "bLitz",
+        "Techno",
+        "910"
+      ]
+    },
+    {
+      "rank": 18,
+      "name": "magic",
+      "hltvId": 13592,
+      "players": [
+        "MaSvAl",
+        "sFade8",
+        "AW",
+        "mo0N",
+        "tenzy"
+      ]
+    },
+    {
+      "rank": 19,
+      "name": "PARIVISION",
+      "hltvId": 12467,
+      "players": [
+        "HObbit",
+        "FL1T",
+        "Jame",
+        "xiELO",
+        "zweih"
+      ]
+    },
+    {
+      "rank": 20,
+      "name": "GamerLegion",
+      "hltvId": 9928,
+      "players": [
+        "Snax",
+        "REZ",
+        "Tauson",
+        "FL4MUS",
+        "hypex"
+      ]
+    },
+    {
+      "rank": 21,
+      "name": "Alliance",
+      "hltvId": 12474,
+      "players": [
+        "twist",
+        "eraa",
+        "bobeksde",
+        "upE",
+        "avid"
+      ]
+    },
+    {
+      "rank": 22,
+      "name": "Inner Circle",
+      "hltvId": 13117,
+      "players": [
+        "cptkurtka023",
+        "headtr1ck",
+        "zeRRoFIX",
+        "onic",
+        "Dawy"
+      ]
+    },
+    {
+      "rank": 23,
+      "name": "3DMAX",
+      "hltvId": 4914,
+      "players": [
+        "Maka",
+        "Lucky",
+        "misutaaa",
+        "Kursy",
+        "Graviti"
+      ]
+    },
+    {
+      "rank": 24,
+      "name": "NRG",
+      "hltvId": 6673,
+      "players": [
+        "nitr0",
+        "Sonic",
+        "hallzerk",
+        "Grim",
+        "Jeorge"
+      ]
+    },
+    {
+      "rank": 25,
+      "name": "M80",
+      "hltvId": 12376,
+      "players": [
+        "slaxz-",
+        "Swisher",
+        "s1n",
+        "JBa",
+        "Lake"
+      ]
+    },
+    {
+      "rank": 26,
+      "name": "BIG",
+      "hltvId": 7532,
+      "players": [
+        "tabseN",
+        "JDC",
+        "faveN",
+        "blameF",
+        "gr1ks"
+      ]
+    },
+    {
+      "rank": 27,
+      "name": "Liquid",
+      "hltvId": 5973,
+      "players": [
+        "NAF",
+        "EliGE",
+        "malbsMd",
+        "JT",
+        "Jorko"
+      ]
+    },
+    {
+      "rank": 28,
+      "name": "paiN",
+      "hltvId": 4773,
+      "players": [
+        "biguzera",
+        "saffee",
+        "snow",
+        "Tatu",
+        "Rkzinho"
+      ]
+    },
+    {
+      "rank": 29,
+      "name": "JiJieHao",
+      "hltvId": 10245,
+      "players": [
+        "m1N1",
+        "sinnopsyy",
+        "Bibu",
+        "CacaNito",
+        "0SAMAS"
+      ]
+    },
+    {
+      "rank": 30,
+      "name": "TYLOO",
+      "hltvId": 4863,
+      "players": [
+        "JamYoung",
+        "Jee",
+        "Mercury",
+        "Moseyuh",
+        "Zero"
+      ]
+    },
+    {
+      "rank": 31,
+      "name": "5star",
+      "hltvId": 13724,
+      "players": [
+        "NEUZ",
+        "rate",
+        "clouden",
+        "ariucle",
+        "hoolig4n"
+      ]
+    },
+    {
+      "rank": 32,
+      "name": "HOTU",
+      "hltvId": 11581,
+      "players": [
+        "n0rb3r7",
+        "kade0",
+        "mizu",
+        "dwushka",
+        "frontales"
+      ]
+    },
+    {
+      "rank": 33,
+      "name": "Lynn Vision",
+      "hltvId": 8840,
+      "players": [
+        "Westmelon",
+        "z4KR",
+        "Starry",
+        "EmiliaQAQ",
+        "C4LLM3SU3"
+      ]
+    },
+    {
+      "rank": 34,
+      "name": "HEROIC",
+      "hltvId": 7175,
+      "players": [
+        "Brollan",
+        "nilo",
+        "susp",
+        "MartinezSa",
+        "Chr1zN"
+      ]
+    },
+    {
+      "rank": 35,
+      "name": "Luminosity",
+      "hltvId": 6290,
+      "players": [
+        "Rainwaker",
+        "afro",
+        "lux",
+        "yxngstxr",
+        "AZUWU"
+      ]
+    },
+    {
+      "rank": 36,
+      "name": "Nemiga",
+      "hltvId": 7969,
+      "players": [
+        "KaiR0N-",
+        "Xant3r",
+        "robo",
+        "khaN",
+        "syph0"
+      ]
+    },
+    {
+      "rank": 37,
+      "name": "100 Thieves",
+      "hltvId": 8474,
+      "players": [
+        "device",
+        "rain",
+        "Gizmy",
+        "sirah",
+        "poiii"
+      ]
+    },
+    {
+      "rank": 38,
+      "name": "Ninjas in Pyjamas",
+      "hltvId": 4411,
+      "players": [
+        "stavn",
+        "sjuush",
+        "Krimbo",
+        "adamb",
+        "xKacpersky"
+      ]
+    },
+    {
+      "rank": 39,
+      "name": "K27",
+      "hltvId": 12895,
+      "players": [
+        "clax",
+        "X5G7V",
+        "xeedo",
+        "kashl1d",
+        "qw1nk1"
+      ]
+    },
+    {
+      "rank": 40,
+      "name": "1win",
+      "hltvId": 10621,
+      "players": [
+        "Ax1Le",
+        "nafany",
+        "BELCHONOKK",
+        "fame",
+        "ArtFr0st"
+      ]
+    },
+    {
+      "rank": 41,
+      "name": "DENDELE",
+      "hltvId": 13926,
+      "players": [
+        "gafolo",
+        "koala",
+        "maxxkor",
+        "rdnzao",
+        "doc"
+      ]
+    },
+    {
+      "rank": 42,
+      "name": "fnatic",
+      "hltvId": 4991,
+      "players": [
+        "fEAR",
+        "jambo",
+        "jackasmo",
+        "cairne",
+        "mazay"
+      ]
+    },
+    {
+      "rank": 43,
+      "name": "EYEBALLERS",
+      "hltvId": 11737,
+      "players": [
+        "JW",
+        "KRIMZ",
+        "maxster",
+        "Ro1f",
+        "dex"
+      ]
+    },
+    {
+      "rank": 44,
+      "name": "Nemesis",
+      "hltvId": 13355,
+      "players": [
+        "SELLTER",
+        "r3salt",
+        "mag1k3Y",
+        "tex1y",
+        "Sdaim"
+      ]
+    },
+    {
+      "rank": 45,
+      "name": "FOKUS",
+      "hltvId": 13679,
+      "players": [
+        "ztr",
+        "Banjo",
+        "podi",
+        "jocab",
+        "Matheos"
+      ]
+    },
+    {
+      "rank": 46,
+      "name": "Wildcard",
+      "hltvId": 12257,
+      "players": [
+        "nEMANHA",
+        "Cxzi",
+        "reck",
+        "HexT",
+        "fr3nd"
+      ]
+    },
+    {
+      "rank": 47,
+      "name": "SINNERS",
+      "hltvId": 10577,
+      "players": [
+        "beastik",
+        "SHOCK",
+        "MoDo",
+        "kisserek",
+        "stressarN"
+      ]
+    },
+    {
+      "rank": 48,
+      "name": "Eternal Fire",
+      "hltvId": 11251,
+      "players": [
+        "MisteM",
+        "regali",
+        "soulfly",
+        "Kvem",
+        "jottAAA"
+      ]
+    },
+    {
+      "rank": 49,
+      "name": "Betclic",
+      "hltvId": 12916,
+      "players": [
+        "Demho",
+        "Prism",
+        "ex1st",
+        "ultimate",
+        "Qlocuu"
+      ]
+    },
+    {
+      "rank": 50,
+      "name": "Virtus.pro",
+      "hltvId": 5378,
+      "players": [
+        "mir",
+        "b1st",
+        "F0R3VER",
+        "AquaRS",
+        "tO0RO"
+      ]
+    },
+    {
+      "rank": 51,
+      "name": "BBL",
+      "hltvId": 13996,
+      "players": [
+        "IceBerg",
+        "salazar",
+        "leakz",
+        "Boye",
+        "NickyB"
+      ]
+    },
+    {
+      "rank": 52,
+      "name": "BC.Game",
+      "hltvId": 12878,
+      "players": [
+        "s1mple",
+        "electroNic",
+        "Magisk",
+        "Senzu",
+        "mzinho"
+      ]
+    },
+    {
+      "rank": 53,
+      "name": "GenOne",
+      "hltvId": 11609,
+      "players": [
+        "Keoz",
+        "Djoko",
+        "Brooxsy",
+        "Chucky",
+        "bL4SEZ"
+      ]
+    },
+    {
+      "rank": 54,
+      "name": "Color",
+      "hltvId": 13973,
+      "players": [
+        "Qikert",
+        "lattykk",
+        "reyoz",
+        "cronuss",
+        "oz1k"
+      ]
+    },
+    {
+      "rank": 55,
+      "name": "Iberian Soul",
+      "hltvId": 13104,
+      "players": [
+        "alex",
+        "mopoz",
+        "sausol",
+        "dav1g"
+      ]
+    },
+    {
+      "rank": 56,
+      "name": "Nuclear TigeRES",
+      "hltvId": 13027,
+      "players": [
+        "senka",
+        "Djon8",
+        "flouzer",
+        "ayuki",
+        "tronic"
+      ]
+    },
+    {
+      "rank": 57,
+      "name": "Acend",
+      "hltvId": 13518,
+      "players": [
+        "SPELLAN",
+        "REDSTAR",
+        "KalubeR",
+        "Skrimo"
+      ]
+    },
+    {
+      "rank": 58,
+      "name": "Sashi",
+      "hltvId": 11712,
+      "players": [
+        "acoR",
+        "Cabbi",
+        "Zyphon",
+        "Anlelele",
+        "MistR"
+      ]
+    },
+    {
+      "rank": 59,
+      "name": "Fluxo",
+      "hltvId": 11837,
+      "players": [
+        "exit",
+        "dav1deuS",
+        "zevy",
+        "kye",
+        "Ltz"
+      ]
+    },
+    {
+      "rank": 60,
+      "name": "Metizport",
+      "hltvId": 11641,
+      "players": [
+        "stanislaw",
+        "Plopski",
+        "F1KU",
+        "forsyy",
+        "MaiL09"
+      ]
+    },
+    {
+      "rank": 61,
+      "name": "Johnny Speeds",
+      "hltvId": 12604,
+      "players": [
+        "draken",
+        "hampus",
+        "Svedjehed",
+        "bsover",
+        "Rack"
+      ]
+    },
+    {
+      "rank": 62,
+      "name": "Imperial",
+      "hltvId": 9455,
+      "players": [
+        "chelo",
+        "VINI",
+        "decenty",
+        "noway",
+        "saadzin"
+      ]
+    },
+    {
+      "rank": 63,
+      "name": "WBT",
+      "hltvId": 13683,
+      "players": [
+        "Psycho",
+        "Smash",
+        "s4ltovsk1yy",
+        "DemQQ",
+        "tyr1k"
+      ]
+    },
+    {
+      "rank": 64,
+      "name": "ex-RUSTEC",
+      "hltvId": 13901,
+      "players": [
+        "shalfey",
+        "Brilliance",
+        "youka",
+        "yiksrezo",
+        "jakekeS"
+      ]
+    },
+    {
+      "rank": 65,
+      "name": "BESTIA",
+      "hltvId": 12144,
+      "players": [
+        "drop",
+        "kauez",
+        "cass1n",
+        "buda",
+        "timo"
+      ]
+    },
+    {
+      "rank": 66,
+      "name": "BET-M",
+      "hltvId": 13619,
+      "players": [
+        "Raijin",
+        "synyx",
+        "z1Nny",
+        "executor",
+        "bluewh1te"
+      ]
+    },
+    {
+      "rank": 67,
+      "name": "9INE",
+      "hltvId": 10278,
+      "players": [
+        "raalz",
+        "kraghen",
+        "b1elany",
+        "flayy",
+        "rim3"
+      ]
+    },
+    {
+      "rank": 68,
+      "name": "ShindeN",
+      "hltvId": 12959,
+      "players": [
+        "tom1jed",
+        "abizz",
+        "ivz",
+        "naz",
+        "guty"
+      ]
+    },
+    {
+      "rank": 69,
+      "name": "Voca",
+      "hltvId": 13499,
+      "players": [
+        "MarKE",
+        "junior",
+        "nosraC",
+        "dare",
+        "snav"
+      ]
+    },
+    {
+      "rank": 70,
+      "name": "INOX Division",
+      "hltvId": 13814,
+      "players": [
+        "k0s",
+        "FenomeN",
+        "k1slll",
+        "finW",
+        "gooddeph"
+      ]
+    },
+    {
+      "rank": 71,
+      "name": "SportsBetExpert",
+      "hltvId": 13375,
+      "players": [
+        "motm",
+        "Infinite",
+        "consti",
+        "shane",
+        "Peeping"
+      ]
+    },
+    {
+      "rank": 72,
+      "name": "Bushido Wildcats",
+      "hltvId": 13281,
+      "players": [
+        "Darendeli",
+        "Muk0s",
+        "Vej",
+        "cadnyx",
+        "cacan"
+      ]
+    },
+    {
+      "rank": 73,
+      "name": "Phantom",
+      "hltvId": 13173,
+      "players": [
+        "TMB",
+        "nicoodoz",
+        "KEi",
+        "Kylar",
+        "cej0t"
+      ]
+    },
+    {
+      "rank": 74,
+      "name": "BRUTE",
+      "hltvId": 9139,
+      "players": [
+        "ZEDKO",
+        "nbqq",
+        "aidKiT",
+        "tAk",
+        "hfah"
+      ]
+    },
+    {
+      "rank": 75,
+      "name": "EAC",
+      "hltvId": 13838,
+      "players": [
+        "Fessor",
+        "n1Xen",
+        "anber",
+        "sSen",
+        "bekker"
+      ]
+    },
+    {
+      "rank": 76,
+      "name": "SAW",
+      "hltvId": 10567,
+      "players": [
+        "MUTiRiS",
+        "NOPEEj",
+        "story",
+        "ewjerkz",
+        "krazy"
+      ]
+    },
+    {
+      "rank": 77,
+      "name": "FORZE Reload",
+      "hltvId": 12857,
+      "players": [
+        "Lack1",
+        "YumsaN",
+        "Kaide",
+        "KusMe",
+        "HeCkBNk"
+      ]
+    },
+    {
+      "rank": 78,
+      "name": "OG",
+      "hltvId": 10503,
+      "players": [
+        "cadiaN",
+        "bodyy",
+        "spooke",
+        "pr1metapz"
+      ]
+    },
+    {
+      "rank": 79,
+      "name": "Black Phoenix",
+      "hltvId": 13924,
+      "players": [
+        "4X1s",
+        "karnez",
+        "topo",
+        "Salazar"
+      ]
+    },
+    {
+      "rank": 80,
+      "name": "BAKS",
+      "hltvId": 11699,
+      "players": [
+        "Norwi",
+        "xdENiSZERA",
+        "danistzz",
+        "whisper",
+        "turbo"
+      ]
+    },
+    {
+      "rank": 81,
+      "name": "ASTRAL",
+      "hltvId": 13333,
+      "players": [
+        "gxx-",
+        "swiz",
+        "RaY5ive",
+        "Neqy",
+        "meowpop"
+      ]
+    },
+    {
+      "rank": 82,
+      "name": "UPGRADE",
+      "hltvId": 13989,
+      "players": [
+        "dezl3bio",
+        "SquEzxc",
+        "pleynnn",
+        "tw1sterzaza",
+        "DAN9ARMATURA"
+      ]
+    },
+    {
+      "rank": 83,
+      "name": "ex-Zero Tenacity",
+      "hltvId": 13573,
+      "players": [
+        "Kind0",
+        "Cjoffo",
+        "brutmonster"
+      ]
+    },
+    {
+      "rank": 84,
+      "name": "Butterfly",
+      "hltvId": 13908,
+      "players": [
+        "Forester",
+        "nitzie",
+        "Kurama",
+        "k1ssly",
+        "ayano"
+      ]
+    },
+    {
+      "rank": 85,
+      "name": "Sangal",
+      "hltvId": 10333,
+      "players": [
+        "adamS",
+        "bnox",
+        "puuha",
+        "R4DYX",
+        "Joey"
+      ]
+    },
+    {
+      "rank": 86,
+      "name": "Prestige",
+      "hltvId": 13159,
+      "players": [
+        "fejtZ",
+        "oopee",
+        "Jelo",
+        "N4XX1S",
+        "qx"
+      ]
+    },
+    {
+      "rank": 87,
+      "name": "QUAZAR",
+      "hltvId": 11312,
+      "players": [
+        "Porya",
+        "gehji",
+        "Ne1XXX",
+        "newt",
+        "kaiori"
+      ]
+    },
+    {
+      "rank": 88,
+      "name": "Galorys",
+      "hltvId": 12677,
+      "players": [
+        "PKL",
+        "destiny",
+        "detr0ittJ",
+        "gbb",
+        "tomate"
+      ]
+    },
+    {
+      "rank": 89,
+      "name": "CYBERSHOKE",
+      "hltvId": 12380,
+      "players": [
+        "alpha",
+        "H4SAN4TOR",
+        "nota",
+        "Alkaren",
+        "Mokuj1n"
+      ]
+    },
+    {
+      "rank": 90,
+      "name": "INFINITE",
+      "hltvId": 10823,
+      "players": [
+        "kreaz",
+        "Blytz",
+        "volt",
+        "sl3nd"
+      ]
+    },
+    {
+      "rank": 91,
+      "name": "DEPO",
+      "hltvId": 12536,
+      "players": [
+        "SNk",
+        "buster",
+        "Krad",
+        "wetfy",
+        "shoxs"
+      ]
+    },
+    {
+      "rank": 92,
+      "name": "6666",
+      "hltvId": 13882,
+      "players": [
+        "amster",
+        "kL1o",
+        "rendysky",
+        "skcH",
+        "dENZY"
+      ]
+    },
+    {
+      "rank": 93,
+      "name": "FlyQuest",
+      "hltvId": 12774,
+      "players": [
+        "jks",
+        "aliStair",
+        "INS",
+        "Vexite",
+        "nettik"
+      ]
+    },
+    {
+      "rank": 94,
+      "name": "Marsborne",
+      "hltvId": 13124,
+      "players": [
+        "freshie",
+        "nicx",
+        "Grizz",
+        "ogwizard",
+        "WUMBO"
+      ]
+    },
+    {
+      "rank": 95,
+      "name": "Bounty Hunters",
+      "hltvId": 12776,
+      "players": [
+        "ponter",
+        "KAISER",
+        "zock",
+        "urban0",
+        "pepe"
+      ]
+    },
+    {
+      "rank": 96,
+      "name": "WW",
+      "hltvId": 12967,
+      "players": [
+        "StRoGo",
+        "kelieN",
+        "m3wsu"
+      ]
+    },
+    {
+      "rank": 97,
+      "name": "BASEMENT BOYS",
+      "hltvId": 13181,
+      "players": [
+        "kr1vda",
+        "OWNER",
+        "kAlash",
+        "Tr0ublE",
+        "maggent"
+      ]
+    },
+    {
+      "rank": 98,
+      "name": "LAG",
+      "hltvId": 11955,
+      "players": [
+        "djay",
+        "Cryptic",
+        "Bwills",
+        "SLIGHT",
+        "Sandman"
+      ]
+    },
+    {
+      "rank": 99,
+      "name": "LP",
+      "hltvId": 13304,
+      "players": [
+        "zmb",
+        "Leomonster",
+        "Alisson",
+        "happ",
+        "divine"
+      ]
+    },
+    {
+      "rank": 100,
+      "name": "UNiTY",
+      "hltvId": 12267,
+      "players": [
+        "KWERTZZ",
+        "2high",
+        "M1key",
+        "Sn0w"
+      ]
+    }
+  ]
+}

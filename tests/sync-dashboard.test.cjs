@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const {PGlite}=require(process.env.PGLITE_TEST_MODULE||'@electric-sql/pglite');
+const {createDashboard}=require('../lib/sync-dashboard');
+const {createScheduleService}=require('../lib/team-schedules');
+const {createNewsService}=require('../lib/news');
+(async()=>{const db=new PGlite();try{
+ await db.exec(fs.readFileSync('db/migration_v21.sql','utf8')+fs.readFileSync('db/migration_v24.sql','utf8'));
+ await db.exec('CREATE TABLE team_sync_state(id integer,failed boolean,checked_at timestamptz,success_at timestamptz);CREATE TABLE sync_status(id integer,status text,last_run_at timestamptz,last_success_at timestamptz)');
+ await db.exec("INSERT INTO team_match_cache VALUES(1,'{\"upcoming\":[],\"results\":[]}',NOW(),NOW(),false),(2,NULL,NOW()-INTERVAL '2 minutes',NULL,true),(3,NULL,NOW(),NULL,true);INSERT INTO team_sync_state VALUES(1,false,NOW(),NOW());INSERT INTO sync_status VALUES(1,'success',NOW(),NOW())");
+ const pool={query:(...args)=>db.query(...args)},directory={teams:[1,2,3,4].map(id=>({id,name:'Team '+id,hltvId:id,profileAvailable:id!==4})),coverage:{total:4,profiles:3},ranking:{date:'2026-09-21'}};
+ let calls=0;const schedules=createScheduleService(pool,async()=>{calls++;return []});
+ await schedules.tick(directory.teams,{retryFailed:true});assert.equal(calls,2);assert.equal((await schedules.read(directory.teams[0])).state,'ready');assert.equal((await schedules.read(directory.teams[1])).state,'ready');assert.equal((await schedules.read(directory.teams[2])).state,'failed');
+ let feedCalls=0;await db.exec("INSERT INTO news_feeds(source,failed,checked_at) VALUES('esi',true,NOW()-INTERVAL '2 minutes'),('steam',false,NOW()-INTERVAL '1 hour')");
+ const news=createNewsService(pool,async()=>{feedCalls++;return {ok:true,text:async()=>'<rss><channel></channel></rss>'}});await news.sync({retryFailed:true});assert.equal(feedCalls,1);
+ let release,started=0;const held=new Promise(r=>{release=r});
+ const dashboard=createDashboard(pool,{configured:true,matchMinutes:15,teams:{list:async()=>directory,sync:async()=>{throw Error('healthy profiles should not retry')}},schedules,news:{sync:async()=>{started++;await held}}});
+ const d=await dashboard.read();assert.deepEqual(d.counts,{ready:2,pending:0,failed:1,stale:0,unmatched:1,disabled:0});assert.equal(d.teams[0].empty,true);assert.equal(d.sources[0].state,'ready');
+ assert.equal(dashboard.retry().accepted,true);assert.equal(dashboard.retry().accepted,false);assert.equal(started,1);assert.equal((await dashboard.read()).retry.running,true);release();
+ for(let i=0;i<20&&(await dashboard.read()).retry.running;i++)await new Promise(r=>setImmediate(r));
+ assert.equal((await dashboard.read()).retry.running,false);assert.equal(dashboard.retry().accepted,false);
+ console.log('PASS: real SQL status aggregation, empty vs failure, failed-only retry, 60-second service guard, single-flight and 5-minute cooldown');
+ }finally{await db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

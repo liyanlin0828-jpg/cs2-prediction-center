@@ -1485,6 +1485,13 @@ const teamSource=async endpoint=>{
 };
 const teamProfiles=createTeamService(pool,teamSource);
 const teamSchedules=require('./lib/team-schedules').createScheduleService(pool,teamSource);
+const syncDashboard=require('./lib/sync-dashboard').createDashboard(pool,{teams:teamProfiles,schedules:teamSchedules,news,configured:!!PANDA_TOKEN,matchMinutes:AUTO_SYNC_MINUTES});
+app.get('/api/admin/data-sync',auth,admin,async(req,res)=>{
+  try{res.json(await syncDashboard.read())}catch{res.status(503).json({message:'同步状态暂时无法读取'})}
+});
+app.post('/api/admin/data-sync/retry',auth,admin,(req,res)=>{
+  const result=syncDashboard.retry();res.status(result.accepted?202:429).json({message:result.accepted?'已开始重试资料失败项，每批最多处理 5 支战队赛程。':'正在重试或处于冷却期，请 5 分钟后再试。'});
+});
 if(PANDA_TOKEN){
   const refreshTeams=(force=false)=>teamProfiles.sync({force}).catch(e=>console.error('[Team sync]',e.message));
   setTimeout(()=>refreshTeams(true),5000);setInterval(refreshTeams,60*1000).unref();

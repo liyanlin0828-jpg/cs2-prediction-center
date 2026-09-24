@@ -30,6 +30,14 @@
     <article class="stat-card"><span>预测</span><strong id="predictionsCount">0</strong></article>
   </section>
 
+  <section class="section admin-panel" aria-labelledby="dataSyncTitle">
+    <div class="section-head"><div><h2 id="dataSyncTitle">数据同步总览</h2><p>服务运行时自动同步；本面板每 30 秒刷新。</p></div><div class="sync-actions"><button id="dataSyncRefresh" class="btn btn-secondary" type="button">刷新状态</button><button id="dataSyncRetry" class="btn btn-secondary" type="button" disabled>重试资料失败项</button></div></div>
+    <p id="dataSyncMessage" class="admin-note" role="status">正在读取同步状态…</p>
+    <div class="table-wrap"><table><thead><tr><th>数据</th><th>状态</th><th>最近检查</th><th>最近成功</th><th>更新间隔</th></tr></thead><tbody id="dataSyncSources"></tbody></table></div>
+    <p id="dataSyncProgress"></p><p id="dataSyncRanking"></p>
+    <details><summary>查看战队同步明细</summary><div class="table-wrap"><table><thead><tr><th>战队</th><th>赛程状态</th><th>最近成功</th><th>数据说明</th></tr></thead><tbody id="dataSyncTeams"></tbody></table></div></details>
+    <p class="muted">重试只处理新闻、战队资料和赛程的失败项，冷却 5 分钟。赛事结算请使用下方原有同步按钮。等待中的战队会自动分批处理。</p>
+  </section>
   <section class="section admin-panel">
     <div class="section-head">
       <div><h2>同步真实 CS2 赛事</h2><p>PandaScore Token 只保存在服务器环境变量中。</p></div>
@@ -129,5 +137,6 @@
 
 <div id="toast" class="toast"></div>
 <script src="js/admin.js"></script>
+<script src="js/admin-sync.js"></script>
 </body>
 </html>

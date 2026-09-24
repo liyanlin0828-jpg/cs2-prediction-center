@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {PGlite}=require(process.env.PGLITE_TEST_MODULE||'@electric-sql/pglite');
+const {createScheduleService,normalize,clean}=require('../lib/team-schedules');
+const match=(n=1,status='finished')=>({id:n,status,begin_at:'2026-09-20T12:00:00Z',opponents:[{opponent:{id:10,name:'Spirit'}},{opponent:{id:20,name:'G2'}}],winner_id:10,results:[{team_id:20,score:0},{team_id:10,score:0}]});
+(async()=>{const db=new PGlite();try{
+ await db.exec(fs.readFileSync(path.join(__dirname,'../db/migration_v24.sql'),'utf8'));
+ let calls=0,fail=false,empty=false;
+ const panda=async url=>{calls++;if(fail&&url.includes('finished'))throw Error('fixture outage');return empty?[]:[match(1,url.includes('finished')?'finished':'not_started')]};
+ const s=createScheduleService({query:(...a)=>db.query(...a)},panda),team={id:10,rank:1,profileAvailable:true};
+ assert.equal((await s.read(team)).state,'pending');assert.equal((await s.read({profileAvailable:false})).state,'unmatched');
+ await Promise.all([s.tick([team]),s.tick([team])]);assert.equal(calls,2);const first=await s.read(team);assert.equal(first.state,'ready');assert.equal(first.data.results[0].winner,'Spirit');assert.equal(first.data.results[0].score_a,null);
+ await s.tick([team]);assert.equal(calls,2);
+ await db.exec("UPDATE team_match_cache SET checked_at=NOW()-INTERVAL '31 minutes'");fail=true;await s.tick([team]);assert.equal((await s.read(team)).state,'failed');assert.deepEqual((await s.read(team)).data,first.data);
+ await db.exec("UPDATE team_match_cache SET checked_at=NOW()-INTERVAL '31 minutes'");fail=false;empty=true;await s.tick([team]);assert.deepEqual((await s.read(team)).data,{upcoming:[],results:[]});
+ assert.equal(normalize(match(),99),null);assert.equal(normalize(match(2,'canceled'),10),null);
+ const scored=match();scored.results=[{team_id:20,score:1},{team_id:10,score:2}];assert.equal(normalize(scored,10).score_a,2);assert.equal(normalize(scored,10).score_b,1);
+ const unfinished=match(3,'running');assert.equal(normalize(unfinished,10).winner,null);const unknown=match();unknown.winner_id=99;assert.equal(normalize(unknown,10).winner,null);
+ assert.equal(clean([match(),match()],10,true).length,1);assert.throws(()=>clean({},10,true));
+ const batch=createScheduleService({query:(...a)=>db.query(...a)},async()=>[]);await batch.tick(Array.from({length:9},(_,i)=>({id:100+i,rank:i+1,profileAvailable:true})));assert.equal(Number((await db.query('SELECT count(*) FROM team_match_cache WHERE team_id>=100')).rows[0].count),5);
+ console.log('PASS: independent cache, single flight, interval, bounded batch, atomic two-list publication, failure retention, successful empty response, exact opponent identity, zero score and winner guards');
+ }finally{await db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

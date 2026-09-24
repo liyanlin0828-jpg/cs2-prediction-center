@@ -1478,21 +1478,25 @@ app.get('/api/news',async(req,res)=>{
   try{void refreshNews();res.json(await news.read())}
   catch{res.status(503).json({message:'新闻暂时无法加载，请稍后重试'})}
 });
-const teamProfiles=createTeamService(pool,async endpoint=>{
+const teamSource=async endpoint=>{
   const response=await fetch('https://api.pandascore.co'+endpoint,{headers:{Accept:'application/json',Authorization:`Bearer ${PANDA_TOKEN}`},signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw new Error('Team source HTTP '+response.status);
   return response.json();
-});
+};
+const teamProfiles=createTeamService(pool,teamSource);
+const teamSchedules=require('./lib/team-schedules').createScheduleService(pool,teamSource);
 if(PANDA_TOKEN){
   const refreshTeams=(force=false)=>teamProfiles.sync({force}).catch(e=>console.error('[Team sync]',e.message));
   setTimeout(()=>refreshTeams(true),5000);setInterval(refreshTeams,60*1000).unref();
+  const refreshSchedules=async()=>{try{await teamSchedules.tick((await teamProfiles.list()).teams)}catch(e){console.error('[Team schedules]',e.message)}};
+  setTimeout(refreshSchedules,20000);setInterval(refreshSchedules,60*1000).unref();
 }
 app.get('/api/teams',async(req,res)=>{
   try{res.json(await teamProfiles.list())}catch{res.status(503).json({message:'战队资料暂时无法加载'})}
 });
 app.get('/api/teams/:id',async(req,res)=>{
   if(!/^[1-9]\d*$/.test(req.params.id)||!Number.isSafeInteger(Number(req.params.id)))return res.status(400).json({message:'无效战队'});
-  try{const data=await teamProfiles.detail(Number(req.params.id));if(!data)return res.status(404).json({message:'该战队不在当前榜单中'});res.json(data)}catch{res.status(503).json({message:'战队详情暂时无法加载'})}
+  try{const data=await teamProfiles.detail(Number(req.params.id));if(!data)return res.status(404).json({message:'该战队不在当前榜单中'});const schedules=await teamSchedules.read(data.team);if(schedules.data){data.upcoming=schedules.data.upcoming;data.results=schedules.data.results;data.matchScope='team'}data.matchSync={...schedules,data:undefined};res.json(data)}catch{res.status(503).json({message:'战队详情暂时无法加载'})}
 });
 app.get('/api/matches/:id/teams',async(req,res)=>{
   const id=Number(req.params.id);if(!Number.isSafeInteger(id)||id<=0)return res.status(400).json({message:'无效比赛'});

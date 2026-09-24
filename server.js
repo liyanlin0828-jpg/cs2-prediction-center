@@ -1490,6 +1490,10 @@ if(PANDA_TOKEN){
 app.get('/api/teams',async(req,res)=>{
   try{res.json(await teamProfiles.list())}catch{res.status(503).json({message:'战队资料暂时无法加载'})}
 });
+app.get('/api/teams/:id',async(req,res)=>{
+  if(!/^[1-9]\d*$/.test(req.params.id)||!Number.isSafeInteger(Number(req.params.id)))return res.status(400).json({message:'无效战队'});
+  try{const data=await teamProfiles.detail(Number(req.params.id));if(!data)return res.status(404).json({message:'该战队不在当前榜单中'});res.json(data)}catch{res.status(503).json({message:'战队详情暂时无法加载'})}
+});
 app.get('/api/matches/:id/teams',async(req,res)=>{
   const id=Number(req.params.id);if(!Number.isSafeInteger(id)||id<=0)return res.status(400).json({message:'无效比赛'});
   try{const data=await teamProfiles.forMatch(id);if(!data)return res.status(404).json({message:'比赛不存在'});res.json(data)}catch{res.status(503).json({message:'战队资料暂时无法加载'})}

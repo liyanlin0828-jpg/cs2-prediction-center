@@ -35,13 +35,13 @@
    container.replaceChildren(...data.teams.map(team=>card(team.profile,team.name,data.sync)));
   }catch{if(request===matchRequest&&target.isConnected)container.replaceChildren(node('p',t('战队资料暂时无法加载。','Team profiles are temporarily unavailable.')))}
  }
- window.TeamProfiles={renderMatch};
+ window.TeamProfiles={renderMatch,card};
  const grid=document.getElementById('teamsList');if(!grid)return;
  const search=document.getElementById('teamSearch'),more=document.getElementById('teamsMore'),status=document.getElementById('teamSyncStatus'),refresh=document.getElementById('teamRefresh');
  let data={teams:[],sync:{}},limit=12,busy=false;
  const searchKey=value=>String(value||'').toLowerCase().replace(/[\s._-]+/g,'');
  function render(){const q=searchKey(search.value);const teams=data.teams.filter(team=>[team.name,team.acronym,...(team.aliases||[]),...team.players.map(p=>p.nickname)].some(value=>searchKey(value).includes(q)));
-  grid.replaceChildren(...teams.slice(0,limit).map(team=>card(team,team.name,data.sync)));if(!teams.length)grid.append(node('p',q?'没有找到匹配的战队或队员。':'暂无战队资料，首次同步可能需要稍等片刻。'));
+  grid.replaceChildren(...teams.slice(0,limit).map(team=>{const link=node('a',null,'team-directory-link');link.href='/team.html?id='+encodeURIComponent(team.hltvId);link.setAttribute('aria-label','查看 '+team.name+' 战队详情');link.append(card(team,team.name,data.sync));return link}));if(!teams.length)grid.append(node('p',q?'没有找到匹配的战队或队员。':'暂无战队资料，首次同步可能需要稍等片刻。'));
   more.hidden=teams.length<=limit;status.textContent=`已显示 ${Math.min(limit,teams.length)} / ${teams.length} 支战队 · 最近成功同步：${data.sync.successAt?new Date(data.sync.successAt).toLocaleString('zh-CN'):'等待首次同步'}${data.sync.stale?' · 更新延迟':''}`;
   if(data.coverage)status.textContent+=` · 已匹配资料 ${data.coverage.profiles} / ${data.coverage.total}`;
   const rankingStatus=document.getElementById('teamRankingStatus');

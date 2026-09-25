@@ -1258,4 +1258,16 @@ input.history-search{
   #stakePointsInput,#mapStakePointsInput{max-width:100%;min-height:44px;font-size:16px}
   .map-predict-options .btn{min-height:44px}
   .prediction-status{white-space:normal;text-align:left}
+  .topbar{position:relative;padding:12px;gap:10px}
+  .topbar nav{gap:4px;justify-content:flex-start}
+  .topbar nav a{display:inline-flex;align-items:center;min-height:44px;padding:8px}
+  .btn,.link-btn{min-height:44px}
+  .hero h1{font-size:clamp(30px,9vw,38px)}
+  .match-detail-header{flex-wrap:wrap}
+  .match-detail-header>*{min-width:0;overflow-wrap:anywhere}
+  .modal{padding:12px;overflow-y:auto}
+  .modal-card{max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow-y:auto;padding:24px 18px}
+  .modal-card h2{padding-right:46px}
+  .modal-card input{font-size:16px;min-height:44px}
+  .modal-close{width:44px;height:44px;top:10px;right:10px}
 }

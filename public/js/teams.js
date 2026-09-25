@@ -18,12 +18,12 @@
   if(profile.profileAvailable===false){el.append(node('p',t('已收录排名，暂未匹配到可靠的 PandaScore 战队资料。','Ranked team listed; a reliable PandaScore profile is not available yet.')));return el}
   if(!profile.rosterKnown||!profile.players.length)el.append(node('p',t('数据源暂未提供当前队员名单。','The source has not provided a current roster.')));
   else{
-   el.append(node('p',t('数据源收录 '+profile.players.length+' 人 · 主力、替补及教练身份待核实','Source lists '+profile.players.length+' people · Starter, substitute and coach status unverified'),'muted'));
+   el.append(node('p',t('数据源收录 '+profile.players.length+' 人','Source lists '+profile.players.length+' people'),'muted'));
    const list=node('ul',null,'team-player-list');
-   for(const player of profile.players){const li=node('li'),info=node('div');li.append(avatar(player.imageUrl,player.nickname));info.append(node('strong',player.nickname),node('small',player.nationality?region(player.nationality):t('国籍暂无资料','Nationality unavailable')),node('small',t('身份待核实','Role unverified')));if(player.sourceActive===false)info.append(node('small',t('数据源标记：非活跃','Source flag: inactive')));li.append(info);list.append(li)}
+   for(const player of profile.players){const li=node('li'),info=node('div');li.append(avatar(player.imageUrl,player.nickname));info.append(node('strong',player.nickname),node('small',player.nationality?region(player.nationality):t('国籍暂无资料','Nationality unavailable')));li.append(info);list.append(li)}
    el.append(list);
   }
-  const evidence=node('details'),summary=node('summary',t('阵容来源与核查说明','Roster sources and verification'));evidence.append(summary,node('p',t('PandaScore 战队关联名单；活跃标记不能证明主力身份，也不能据非活跃标记推断已离队。','PandaScore team-associated list. Active does not mean starter; inactive does not establish departure.')));
+  const evidence=node('details'),summary=node('summary',t('阵容来源与核查说明','Roster sources and verification'));evidence.append(summary,node('p',t('PandaScore 战队关联名单，不代表本场比赛已确认出场名单。','PandaScore team-associated list, not a confirmed lineup for this match.')));
   evidence.append(node('p',t('源资料更新时间：','Source record updated: ')+(profile.sourceUpdatedAt?new Date(profile.sourceUpdatedAt).toLocaleString(en?'en':'zh-CN'):t('未提供','Not provided'))+t('（不是阵容确认时间）',' (not a roster verification time)')));
   const reference=profile.rosterReference;
   if(reference?.source==='HLTV ranking'&&Array.isArray(reference.players)&&reference.players.length){

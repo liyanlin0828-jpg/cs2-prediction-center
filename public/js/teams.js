@@ -18,10 +18,20 @@
   if(profile.profileAvailable===false){el.append(node('p',t('已收录排名，暂未匹配到可靠的 PandaScore 战队资料。','Ranked team listed; a reliable PandaScore profile is not available yet.')));return el}
   if(!profile.rosterKnown||!profile.players.length)el.append(node('p',t('数据源暂未提供当前队员名单。','The source has not provided a current roster.')));
   else{
+   el.append(node('p',t('数据源收录 '+profile.players.length+' 人 · 主力、替补及教练身份待核实','Source lists '+profile.players.length+' people · Starter, substitute and coach status unverified'),'muted'));
    const list=node('ul',null,'team-player-list');
-   for(const player of profile.players){const li=node('li'),info=node('div');li.append(avatar(player.imageUrl,player.nickname));info.append(node('strong',player.nickname),node('small',player.nationality?region(player.nationality):t('国籍暂无资料','Nationality unavailable')));li.append(info);list.append(li)}
+   for(const player of profile.players){const li=node('li'),info=node('div');li.append(avatar(player.imageUrl,player.nickname));info.append(node('strong',player.nickname),node('small',player.nationality?region(player.nationality):t('国籍暂无资料','Nationality unavailable')),node('small',t('身份待核实','Role unverified')));if(player.sourceActive===false)info.append(node('small',t('数据源标记：非活跃','Source flag: inactive')));li.append(info);list.append(li)}
    el.append(list);
   }
+  const evidence=node('details'),summary=node('summary',t('阵容来源与核查说明','Roster sources and verification'));evidence.append(summary,node('p',t('PandaScore 战队关联名单；活跃标记不能证明主力身份，也不能据非活跃标记推断已离队。','PandaScore team-associated list. Active does not mean starter; inactive does not establish departure.')));
+  evidence.append(node('p',t('源资料更新时间：','Source record updated: ')+(profile.sourceUpdatedAt?new Date(profile.sourceUpdatedAt).toLocaleString(en?'en':'zh-CN'):t('未提供','Not provided'))+t('（不是阵容确认时间）',' (not a roster verification time)')));
+  const reference=profile.rosterReference;
+  if(reference?.source==='HLTV ranking'&&Array.isArray(reference.players)&&reference.players.length){
+   evidence.append(node('p',t('HLTV 榜单阵容参考（','HLTV ranking roster reference (')+reference.date+'）：'+reference.players.join('、')));
+   try{const url=new URL(reference.url);if(url.origin==='https://www.hltv.org'&&/^\/ranking\/teams\/\d{4}\/[a-z]+\/\d{1,2}$/.test(url.pathname)){const a=node('a',t('查看该日期榜单','View dated ranking'));a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';evidence.append(a)}}catch{}
+   evidence.append(node('p',t('仅反映该日期榜单收录，不作为当前首发、替补或离队判定依据。','This dated list does not establish current starters, substitutes or departures.')));
+  }
+  el.append(evidence);
   el.append(node('p',t('最近同步：','Last synced: ')+(profile.syncedAt?new Date(profile.syncedAt).toLocaleString(en?'en':'zh-CN'):t('暂无','Unavailable'))+((profile.stale||sync?.stale)?t(' · 更新延迟，展示缓存资料',' · Update delayed; showing cached data'):''),'profile-updated'));
   return el;
  }
@@ -29,7 +39,7 @@
  let matchRequest=0;
  async function renderMatch(id,target){
   if(!target)return;const request=++matchRequest;
-  target.replaceChildren(node('h3',t('双方战队与当前阵容','Teams and current rosters')),node('p',t('数据来源 PandaScore · 当前阵容并非本场已确认出场名单','Source: PandaScore · Current rosters are not confirmed lineups for this match')));
+  target.replaceChildren(node('h3',t('双方战队与收录名单','Teams and listed players')),node('p',t('数据来源 PandaScore · 收录名单并非本场已确认出场名单','Source: PandaScore · Listed players are not confirmed lineups for this match')));
   const container=node('div',t('正在加载战队资料…','Loading team profiles…'),'team-profile-grid');target.append(container);
   try{const data=await get('/api/matches/'+encodeURIComponent(id)+'/teams');if(request!==matchRequest||!target.isConnected)return;
    container.replaceChildren(...data.teams.map(team=>card(team.profile,team.name,data.sync)));

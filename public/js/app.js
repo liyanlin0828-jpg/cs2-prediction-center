@@ -157,13 +157,7 @@ m.score_b !== null &&
 
       <div class="match-footer">
         <span>🏆 胜者：${escapeHtml(m.winner)}</span>
-        <button
-  type="button"
-  class="match-detail-btn"
-  onclick="openMatchDetail(${m.id})"
->
-  查看详情 →
-</button>
+        ${matchActions(m)}
       </div>
     </article>`;
 }).join('');
@@ -348,7 +342,7 @@ const sortedMatches=[...visibleMatches].sort((a,b)=>{
 
     <div class="match-footer">
       <span>🏆 胜者：${escapeHtml(m.winner||'待确认')}</span>
-      <span>已结束</span>
+      ${matchActions(m)}
     </div>
   </article>`;
 } 
@@ -398,14 +392,26 @@ const matchStatus=m.user_prediction
       : (state.lang==='zh'?'尚未预测':'Not Predicted')
 }</span>
 
-<button class="match-detail-btn" onclick="event.stopPropagation();openMatchDetail(${m.id})">
-  ${state.lang==='zh'?'查看详情 →':'View Details →'}
-</button>
+${matchActions(m)}
 </div>
     </article>`;
   }).join('');
   }
 
+function matchActions(m){
+  const zh=state.lang==='zh',finished=m.status==='settled'||!!m.winner;
+  const locked=finished||m.status!=='open'||!!m.predictions_voided_at||isPredictionLocked(m.starts_at);
+  const label=finished?(zh?'已结束':'Finished'):locked?(zh?'已锁盘':'Locked'):(zh?'下注':'Place prediction');
+  return `<div class="match-actions"><button type="button" class="match-detail-btn" onclick="event.stopPropagation();openMatchDetail(${Number(m.id)})">${zh?'查看详情 →':'View Details →'}</button><button type="button" class="match-bet-btn" ${locked?'disabled':''} onclick="event.stopPropagation();openMatchBet(${Number(m.id)})">${label}</button></div>`;
+}
+function openMatchBet(matchId){
+  const m=state.matches.find(x=>Number(x.id)===Number(matchId));
+  if(!m||m.status!=='open'||m.winner||m.predictions_voided_at||isPredictionLocked(m.starts_at)){toast(state.lang==='zh'?'该比赛已停止下注':'Predictions are closed for this match');return}
+  openMatchDetail(matchId,true);
+  const target=$('stakePointsInput');
+  if(target){target.focus({preventScroll:true});target.scrollIntoView({behavior:'smooth',block:'center'})}
+}
+window.openMatchBet=openMatchBet;
 function openMatchDetail(matchId,autoRefresh=false){
   const m=
   state.matches.find(x=>Number(x.id)===Number(matchId)) ||
@@ -518,6 +524,7 @@ ${
 </div>
 ${!locked && m.status!=='settled' && !m.winner ? `
   <div style="margin:16px 0;">
+    <p class="prediction-entry-hint">${state.lang==='zh'?'请输入下注积分，再点击上方战队选择胜方。仅使用娱乐积分。':'Enter your points, then select a team above. Entertainment points only.'}</p>
     <div style="margin-bottom:8px;">
       可用积分：<strong>${Number(state.me?.points||0)}</strong>
     </div>

@@ -1338,3 +1338,35 @@ input.history-search{
  .home-page .section{scroll-margin-top:16px}
 }
 @media(prefers-reduced-motion:reduce){.home-page{scroll-behavior:auto}.home-page .match-card{transition:none}}
+
+/* Match detail: readable prediction controls and result summary. */
+.home-page .match-detail-card{background:linear-gradient(135deg,rgba(23,36,56,.98),rgba(10,17,29,.98));border-color:#33445e;padding:28px}
+.home-page .match-detail-card h2{font-size:clamp(21px,2.4vw,30px);line-height:1.4;overflow-wrap:anywhere}
+.home-page .match-detail-card>p{margin:8px 0;color:#aebdd2;line-height:1.6}
+.home-page .match-detail-header{padding-bottom:16px;border-bottom:1px solid #2a3850;flex-wrap:wrap}
+.home-page .match-detail-header .countdown{margin-left:auto;font-size:14px;font-weight:700}
+.winner-entry{margin:24px 0 16px;padding:20px;border:1px solid #4766a0;border-radius:16px;background:rgba(73,110,203,.10);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 24px;align-items:center}
+.winner-entry h3{font-size:18px;margin:0}.winner-entry .prediction-entry-hint{grid-column:1;margin:0;font-size:13px}
+.winner-entry .winner-balance{grid-column:2;grid-row:1;font-size:13px;color:#aebdd2}.winner-balance strong{font-size:20px;color:#fff;margin-left:6px}
+.winner-entry label{grid-column:2;grid-row:2;display:flex;align-items:center;gap:10px;font-size:14px}
+.winner-stake-input{width:180px;min-width:0;min-height:46px;padding:10px 12px;border:1px solid #526d9b;border-radius:10px;background:#091322;color:#fff;font-size:16px;color-scheme:dark}
+.winner-stake-input:focus-visible{outline:2px solid #9bb5ff;outline-offset:3px}
+.home-page .match-detail-card .teams{grid-template-columns:minmax(0,1fr) 100px minmax(0,1fr);gap:18px}
+.home-page .match-detail-card .team{min-width:0;padding:18px 12px;background:#111e32}.home-page .match-detail-card .team strong{overflow-wrap:anywhere}
+.home-page .match-detail-card .team.selected{background:#203b65;border-color:#8aaeff}
+.home-page .match-detail-card .vs{min-width:0}.home-page .match-detail-card .vs .match-format{white-space:normal;overflow-wrap:anywhere;text-align:center;max-width:100%}
+.home-page .match-detail-card .map-predict-box{margin-top:24px;padding:20px;border:1px solid #33445e;border-radius:16px;background:rgba(10,17,29,.7)}
+.home-page .map-predict-title{font-size:18px;font-weight:800}.home-page .map-predict-box p{font-size:13px;line-height:1.7;color:#b6c3d7}.home-page .map-predict-box label{display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:14px;margin:14px 0}
+.home-page #mapStakePointsInput{min-height:44px;padding:10px 12px;border:1px solid #526d9b;border-radius:10px;background:#091322;color:#fff;font-size:16px;color-scheme:dark}
+.home-page .match-detail-card .match-insight{margin-top:24px;background:#111e32;padding:18px}.home-page .match-detail-card .match-insight strong{overflow-wrap:anywhere}
+.home-page #matchTeamProfiles{padding-top:24px;border-top:1px solid #2a3850;margin-top:28px}.home-page #matchTeamProfiles>h3{margin-top:0}
+@media(max-width:700px){
+ .home-page .match-detail-card{padding:18px}
+ .winner-entry{padding:16px;grid-template-columns:minmax(0,1fr);gap:12px}
+ .winner-entry .winner-balance,.winner-entry label,.winner-entry .prediction-entry-hint{grid-column:1;grid-row:auto}
+ .winner-entry label{flex-wrap:wrap}.winner-stake-input{width:100%}
+ .home-page .match-detail-card .teams{grid-template-columns:minmax(0,1fr) 48px minmax(0,1fr);gap:8px}
+ .home-page .match-detail-card .team{padding:12px 6px;min-height:140px}.home-page .match-detail-card .team strong{font-size:16px}
+ .home-page .match-detail-card .team-logo{width:48px;height:48px}.home-page .match-detail-card .vs{font-size:16px}.home-page .match-detail-card .match-format{padding:4px;font-size:10px}
+ .home-page .match-detail-card .map-predict-box{padding:16px}
+}

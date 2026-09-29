@@ -427,7 +427,7 @@ function openMatchDetail(matchId,autoRefresh=false){
   const detail=$('matchDetail');
   const card=$('matchDetailCard');
   const matches=$('matches');
-  const locked=m.status!=='open'||!!m.predictions_voided_at||isPredictionLocked(m.starts_at);
+  const locked=m.status!=='open'||!!m.winner||!!m.predictions_voided_at||isPredictionLocked(m.starts_at);
   const predictionDisabled=locked;
   const timeToStart=new Date(m.starts_at).getTime()-Date.now();
 const countdownClass=locked?'locked':timeToStart<=30*60*1000?'soon':'';
@@ -465,6 +465,28 @@ ${
       : `<p class="match-stage">比赛状态：未开始</p>`
 }
     <p>${new Date(m.starts_at).toLocaleString('zh-CN')}</p>
+
+${!locked && m.status!=='settled' && !m.winner ? `
+  <section class="winner-entry" aria-label="胜负预测">
+    <h3>胜负预测</h3>
+    <p class="prediction-entry-hint">${state.lang==='zh'?'先输入积分，再点击下方战队选择胜方。仅使用娱乐积分。':'Enter your points, then select a team below. Entertainment points only.'}</p>
+    <div class="winner-balance">
+      可用积分：<strong>${Number(state.me?.points||0)}</strong>
+    </div>
+
+    <label>
+      下注积分：
+      <input
+        id="stakePointsInput"
+        type="number"
+        min="1"
+        step="1"
+        placeholder="请输入下注积分"
+        class="winner-stake-input"
+      >
+    </label>
+  </section>
+` : ''}
 
     <div class="teams">
   
@@ -521,29 +543,7 @@ ${
        <span>${m.source==='pandascore'?'—':m.odds_b}</span>
       </button>
     </div>
-</div>
-${!locked && m.status!=='settled' && !m.winner ? `
-  <div style="margin:16px 0;">
-    <p class="prediction-entry-hint">${state.lang==='zh'?'请输入下注积分，再点击上方战队选择胜方。仅使用娱乐积分。':'Enter your points, then select a team above. Entertainment points only.'}</p>
-    <div style="margin-bottom:8px;">
-      可用积分：<strong>${Number(state.me?.points||0)}</strong>
-    </div>
-
-    <label>
-      下注积分：
-      <input
-        id="stakePointsInput"
-        type="number"
-        min="1"
-        step="1"
-        placeholder="请输入下注积分"
-        style="width:160px;margin-left:8px;"
-      >
-    </label>
-  </div>
-` : ''}
 ${renderMapMarket(m,mapPrediction)}
-<section id="matchTeamProfiles" class="team-profiles-box"></section>
 <div class="match-insight">
   <div>
     <span>我的预测</span>
@@ -593,6 +593,7 @@ ${renderMapMarket(m,mapPrediction)}
   }
 </span>
     </div>
+<section id="matchTeamProfiles" class="team-profiles-box"></section>
   `;
 
  detail.dataset.matchId=String(m.id);

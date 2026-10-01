@@ -1,4 +1,4 @@
-const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],results:[],mapPredictions:[],resultsExpanded:false,mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
+const state={token:localStorage.getItem('cs2_token'),me:null,matches:[],leaderboard:[],results:[],mapPredictions:[],mapSelections:[],resultsExpanded:false,mode:'login',matchFilter:'all',historyFilter:'all',historySort:'desc',historySearch:'',historyPage:1,
 historyPageSize:10,lang:localStorage.getItem('cs2_lang')||'zh',};
 const $=id=>document.getElementById(id);
 const api=async(path,options={})=>{
@@ -62,12 +62,13 @@ state.results=results.results||[];
 
     const mapData=await api('/map-predictions/me');
     state.mapPredictions=mapData.mapPredictions||[];
+    state.mapSelections=(await api('/map-selection-predictions/me')).predictions||[];
   }catch{
-    state.mapPredictions=[];
+    state.mapPredictions=[];state.mapSelections=[];
     logout(false);
   }
 }else{
-  state.mapPredictions=[];
+  state.mapPredictions=[];state.mapSelections=[];
 }
   renderMatches();renderResults();renderLeaderboard();renderUser();
   const detail=$('matchDetail');
@@ -543,7 +544,7 @@ ${!locked && m.status!=='settled' && !m.winner ? `
        <span>${m.source==='pandascore'?'—':m.odds_b}</span>
       </button>
     </div>
-${renderMapMarket(m,mapPrediction)}
+${renderMapSelection(m)}${renderMapMarket(m,mapPrediction)}
 <div class="match-insight">
   <div>
     <span>我的预测</span>
@@ -615,50 +616,56 @@ window.openMatchDetail=openMatchDetail;
 function mapChoices(m){return Number(m.number_of_games)===3?[2,3]:Number(m.number_of_games)===5?[3,4,5]:[]}
 function pointsLabel(n){return Number(n)>0?'+'+Number(n):String(Number(n)||0)}
 function renderMapMarket(m,p){
-  const options=mapChoices(m);
-  if(!options.length&&!p)return '';
-  const open=m.status==='open'&&!m.winner&&!m.predictions_voided_at&&!isPredictionLocked(m.starts_at)&&!p?.result;
+  if(!p)return ''; // Historical map-count records only; no new map-count betting.
   const actual=m.actual_map_count??p?.actual_map_count;
   return `<div class="map-predict-box">
-    <div class="map-predict-title">总地图数预测 · BO${Number(m.number_of_games)}</div>
+    <div class="map-predict-title">历史地图数预测 · BO${Number(m.number_of_games)}</div>
     <p>仅使用娱乐积分。猜中返还包含本金，按下注时锁定赔率向下取整；猜错扣除下注积分。</p>
-    ${open?`<label>地图数下注积分：
-      <input id="mapStakePointsInput" type="number" min="1" max="1000000" step="1"
-        value="${Number(p?.stake_points)>0?Number(p.stake_points):''}" placeholder="请输入积分" style="max-width:160px">
-    </label>
-    <div class="map-predict-options">${options.map(n=>{
-      const odds=Number(m['map_odds_'+n]),enabled=Number.isFinite(odds)&&odds>=1;
-      return `<button type="button" class="btn btn-secondary ${Number(p?.predicted_map_count)===n?'selected':''}"
-        ${enabled?'':'disabled'} onclick="selectMapCount(${n},this)">
-        ${n} 张 · ${enabled?odds.toFixed(4).replace(/0+$/,'').replace(/\.$/,''):'未开放'}</button>`;
-    }).join('')}</div>`:'<p>已锁盘</p>'}
+    <p>已停止新增；此记录按原地图数规则结算。</p>
     ${p?`<p>我的预测：${Number(p.predicted_map_count)} 张 · 下注 ${Number(p.stake_points||0)} 积分
       ${Number(p.odds_at_prediction)>0?' · 锁定赔率 '+Number(p.odds_at_prediction):' · 历史无下注记录'}</p>
       <p>${p.result==='refunded'?'已退本金 '+Number(p.refund_points||0)+' 积分 · 不计输赢':p.result?(p.result==='win'?'猜中':'猜错')+' · 返还 '+Number(p.payout_points||0)+' · 盈亏 '+pointsLabel(p.points_delta):m.status==='postponed'?'延期暂停，原下注保留':'待结算（实际地图数未确认时继续等待）'}</p>`:''}
     <p>实际地图数：${actual==null?'待确认':Number(actual)+' 张'}</p>
   </div>`;
 }
-async function selectMapCount(count,btn){
-  if(!state.me){openAuth('login');toast('请先登录');return}
-  const matchId=Number($('matchDetail')?.dataset?.matchId);
-  const stakePoints=Number($('mapStakePointsInput')?.value);
-  if(!matchId)return toast('找不到比赛');
-  if(!Number.isSafeInteger(stakePoints)||stakePoints<1||stakePoints>1000000)return toast('请输入 1–1000000 的整数积分');
-  const match=state.matches.find(m=>Number(m.id)===matchId);
-  const old=state.mapPredictions.find(p=>Number(p.match_id)===matchId);
-  const odds=Number(old&&Number(old.predicted_map_count)===count&&Number(old.stake_points)===stakePoints?old.odds_at_prediction:match?.['map_odds_'+count]);
-  if(!Number.isFinite(odds)||odds<1)return toast('当前赔率未开放');
-  if(!confirm(`确认预测 ${count} 张，下注 ${stakePoints} 积分，赔率 ${odds}？猜中预计返还 ${Math.floor(stakePoints*Math.round(odds*10000)/10000)} 积分（含本金）。`))return;
-  const buttons=[...btn.closest('.map-predict-options').querySelectorAll('button')];
-  const disabled=buttons.map(b=>b.disabled);buttons.forEach(b=>b.disabled=true);
-  try{
-    const data=await api('/map-predictions',{method:'POST',body:JSON.stringify({matchId,mapCount:count,stakePoints,expectedOdds:odds})});
-    state.me=data.user;toast(data.message);await loadAll();
-  }catch(e){toast(e.message||'地图数预测失败')}
-  finally{buttons.forEach((b,i)=>b.disabled=disabled[i])}
+const mapNameCatalogue=['Ancient','Anubis','Cache','Cobblestone','Dust2','Inferno','Mirage','Nuke','Overpass','Train','Vertigo'];
+function selectionIsOpen(m,p){
+  return m.status==='open'&&!m.winner&&!m.predictions_voided_at&&!m.selected_maps&&!m.map_selection_locked_at&&!p?.result
+    &&!isPredictionLocked(m.starts_at)&&Date.parse(m.map_selection_closes_at)>Date.now();
 }
+function renderMapSelection(m){
+  const p=state.mapSelections.find(x=>Number(x.match_id)===Number(m.id));
+  if(![1,3,5].includes(Number(m.number_of_games))&&!p)return '';
+  const open=selectionIsOpen(m,p),names=mapNameCatalogue.filter(n=>Number(m.map_selection_odds?.[n])>=1);
+  const actual=m.selected_maps||p?.selected_maps;
+  return `<section class="map-predict-box" aria-label="地图选择预测">
+    <h3 class="map-predict-title">预测哪张地图入选 · BO${Number(m.number_of_games)}</h3>
+    <p>每场选一张地图。进入最终选图名单即算猜中，未打的决胜图也计入；不预测地图顺序或单图胜负。</p>
+    <p>仅使用娱乐积分。猜中按锁定赔率返还（含本金），猜错损失本次下注积分。</p>
+    ${open&&names.length?`<label>地图预测积分：<input id="mapSelectionStake" type="number" min="1" max="1000000" step="1" value="${Number(p?.stake_points)||''}" placeholder="请输入积分"></label>
+    <div class="map-predict-options">${names.map(n=>`<button type="button" class="btn btn-secondary ${p?.predicted_map===n?'selected':''}" onclick="selectMapName('${n}',this)">${n} · ${Number(m.map_selection_odds[n])}</button>`).join('')}</div>
+    <p>停止预测：${new Date(Math.min(Date.parse(m.map_selection_closes_at),Date.parse(m.starts_at)-600000)).toLocaleString('zh-CN')}；选图提前公布时会提前锁盘。</p>`:`<p>${m.status==='postponed'?'比赛延期，暂停预测':m.map_selection_locked_at||isPredictionLocked(m.starts_at)||m.winner||actual||m.map_selection_closes_at&&Date.parse(m.map_selection_closes_at)<=Date.now()?'已锁盘':'地图预测暂未开放，等待确认赛事图池与锁盘时间'}</p>`}
+    ${p?`<p>我的选择：<strong>${escapeHtml(p.predicted_map)}</strong> · 下注 ${Number(p.stake_points)} 积分 · 锁定赔率 ${Number(p.odds_at_prediction)}</p>
+      <p>${p.result==='refunded'?'已退本金 '+Number(p.refund_points)+' 积分 · 不计输赢':p.result?(p.result==='win'?'猜中':'猜错')+' · 返还 '+Number(p.payout_points)+' · 盈亏 '+pointsLabel(p.points_delta):'待结算：等待核实完整选图名单'}</p>`:''}
+    <p>最终入选名单：${actual?escapeHtml(actual.join('、')):'待确认（包含未打的决胜图）'}</p>
+  </section>`;
+}
+async function selectMapName(map,btn){
+  if(!state.me){openAuth('login');return toast('请先登录')}
+  const matchId=Number($('matchDetail')?.dataset.matchId),m=state.matches.find(x=>Number(x.id)===matchId);
+  const p=state.mapSelections.find(x=>Number(x.match_id)===matchId),stakePoints=Number($('mapSelectionStake')?.value);
+  if(!m||!selectionIsOpen(m,p))return toast('地图预测已锁盘');
+  if(!Number.isSafeInteger(stakePoints)||stakePoints<1||stakePoints>1000000)return toast('请输入 1–1000000 的整数积分');
+  const odds=Number(p&&p.predicted_map===map&&Number(p.stake_points)===stakePoints?p.odds_at_prediction:m.map_selection_odds?.[map]);
+  if(!mapNameCatalogue.includes(map)||!Number.isFinite(odds)||odds<1)return toast('该地图尚未开放');
+  if(!confirm(`预测 ${map} 进入最终名单，下注 ${stakePoints} 积分，赔率 ${odds}？\n包括未打的决胜图，猜中返还 ${Math.floor(stakePoints*Math.round(odds*10000)/10000)} 积分（含本金）。${p?'\n确认后将替换本场原地图选择。':''}`))return;
+  const buttons=[...btn.closest('.map-predict-options').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+  try{const data=await api('/map-selection-predictions',{method:'POST',body:JSON.stringify({matchId,map,stakePoints,expectedOdds:odds})});state.me=data.user;toast(data.message);await loadAll()}
+  catch(e){toast(e.message||'地图选择预测失败')}
+  finally{buttons.forEach(b=>b.disabled=false)}
+}
+window.selectMapName=selectMapName;
 
-window.selectMapCount=selectMapCount;
 $('backToMatchesBtn').onclick=()=>{
   $('matchDetail').classList.add('hidden');
   $('matches').classList.remove('hidden');
@@ -711,7 +718,7 @@ function renderLeaderboard(){
 }
 async function renderProfile(){
   const {predictions:winnerPredictions}=await api('/predictions/me');
-  const predictions=[...winnerPredictions.map(p=>({...p,market:'winner'})),...(state.mapPredictions||[]).map(p=>({...p,market:'maps',predicted_team:'总地图数 '+p.predicted_map_count+' 张'}))];
+  const predictions=[...winnerPredictions.map(p=>({...p,market:'winner'})),...(state.mapPredictions||[]).map(p=>({...p,market:'maps',predicted_team:'总地图数 '+p.predicted_map_count+' 张'})),...(state.mapSelections||[]).map(p=>({...p,market:'selection',predicted_team:'地图入选：'+p.predicted_map}))];
   const totalPredictions=predictions.length;
   const winCount=predictions.filter(p=>p.result==='win').length;
   const lossCount=predictions.filter(p=>p.result==='loss').length;
@@ -837,7 +844,7 @@ const pagedPredictions=sortedPredictions.slice(
     : ''
   }
 
-  ${p.result==='refunded'?'退分原因：'+(p.void_reason==='postponed'?'比赛延期':'比赛取消'):isMaps
+  ${p.result==='refunded'?'退分原因：'+(p.void_reason==='postponed'?'比赛延期':'比赛取消'):p.market==='selection'?'入选名单：'+(p.selected_maps?escapeHtml(p.selected_maps.join('、')):'待确认'):isMaps
     ? '实际地图数：'+(p.actual_map_count==null?'待确认':Number(p.actual_map_count)+' 张')
     : '实际胜者：'+(p.winner?escapeHtml(p.winner):'待公布')}
   ${p.created_at?'<br>预测时间：'+new Date(p.created_at).toLocaleString('zh-CN'):''}

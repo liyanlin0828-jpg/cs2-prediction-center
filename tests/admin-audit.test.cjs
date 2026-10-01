@@ -12,6 +12,7 @@ const {PGlite}=require(process.env.PGLITE_TEST_MODULE||'@electric-sql/pglite');
    CREATE TABLE predictions(id INT,user_id INT,match_id INT,result TEXT); INSERT INTO predictions VALUES(1,2,10,NULL);
    CREATE TABLE map_predictions(id INT,user_id INT,match_id INT,result TEXT);`);
   await db.exec(fs.readFileSync(path.join(__dirname,'../db/migration_v20.sql'),'utf8'));
+  await db.exec(fs.readFileSync(path.join(__dirname,'../db/migration_v25.sql'),'utf8'));
   const c=await auditedPool(pool,1,'result','match',10).connect();
   await c.query('BEGIN');await c.query("UPDATE matches SET status='settled',winner='A' WHERE id=10");
   await c.query('UPDATE users SET points=200,locked_points=0 WHERE id=2');await c.query('COMMIT');

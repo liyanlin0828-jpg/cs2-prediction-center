@@ -117,13 +117,13 @@ $('apiStatus').textContent=systemStatus;
   await loadAuditLogs().catch(e=>{$('auditLogBody').textContent=e.message});
 }
 let auditCursor=null;
-const auditActions={'grant-points':'发放积分',result:'胜负结算',unsettle:'撤销胜负与地图结算','map-result':'录入地图数并结算','map-unsettle':'撤销地图结算','map-odds':'修改地图赔率',cancel:'取消并退本金',postpone:'延期保留下注','refund-postponed':'延期退本金',resume:'恢复比赛'};
+const auditActions={'map-selection-config':'配置地图选择预测','map-selection-lock':'地图选择锁盘','map-selection-result':'地图名单结算','map-selection-undo':'撤销地图名单结算','grant-points':'发放积分',result:'胜负结算',unsettle:'撤销胜负与地图结算','map-result':'录入地图数并结算','map-unsettle':'撤销地图结算','map-odds':'修改地图赔率',cancel:'取消并退本金',postpone:'延期保留下注','refund-postponed':'延期退本金',resume:'恢复比赛'};
 function auditChanges(before,after){
   const changes=[];
-  const fields={status:'状态',winner:'胜者',actual_map_count:'实际地图数',starts_at:'开赛时间',predictions_voided_at:'退本金时间',void_reason:'退分原因',map_odds_2:'2 张赔率',map_odds_3:'3 张赔率',map_odds_4:'4 张赔率',map_odds_5:'5 张赔率',maps_manual_review:'地图数人工复核'};
-  for(const [key,label] of Object.entries(fields))if(JSON.stringify(before.match?.[key])!==JSON.stringify(after.match?.[key]))changes.push(`${label}：${before.match?.[key]??'无'} → ${after.match?.[key]??'无'}`);
+  const fields={selected_maps:'最终地图名单',selected_maps_source:'地图名单来源',map_selection_odds:'地图选择赔率',map_selection_closes_at:'地图预测截止时间',map_selection_locked_at:'地图选择锁盘时间',status:'状态',winner:'胜者',actual_map_count:'实际地图数',starts_at:'开赛时间',predictions_voided_at:'退本金时间',void_reason:'退分原因',map_odds_2:'2 张赔率',map_odds_3:'3 张赔率',map_odds_4:'4 张赔率',map_odds_5:'5 张赔率',maps_manual_review:'地图数人工复核'};
+  for(const [key,label] of Object.entries(fields))if(JSON.stringify(before.match?.[key])!==JSON.stringify(after.match?.[key]))changes.push(`${label}：${typeof before.match?.[key]==='object'?JSON.stringify(before.match?.[key]):before.match?.[key]??'无'} → ${typeof after.match?.[key]==='object'?JSON.stringify(after.match?.[key]):after.match?.[key]??'无'}`);
   for(const u of after.users||[]){const old=(before.users||[]).find(x=>x.id===u.id);if(old&&(old.points!==u.points||old.locked_points!==u.locked_points))changes.push(`${u.username}（${u.id}）可用 ${old.points} → ${u.points}；冻结 ${old.locked_points} → ${u.locked_points}`)}
-  for(const [key,label] of [['predictions','胜负预测'],['maps','地图预测']]){
+  for(const [key,label] of [['predictions','胜负预测'],['maps','旧地图数预测'],['selections','地图选择预测']]){
     const changed=(after[key]||[]).filter(p=>{const old=(before[key]||[]).find(x=>x.id===p.id);return JSON.stringify(old)!==JSON.stringify(p)});
     if(changed.length)changes.push(`${label}：${changed.length} 条记录变更`);
   }
@@ -218,6 +218,7 @@ function filterAdminMatches(rows,{search='',status='all',from='',to='',attention
     const day=localDate(m.starts_at);if((from&&(!day||day<from))||(to&&(!day||day>to)))return false;
     if(attention==='conflicts'&&!conflicts.has(Number(m.id)))return false;
     if(attention==='maps'&&!needsMaps(m))return false;
+      if(attention==='selection'&&!(m.status==='settled'&&!m.selected_maps&&!m.predictions_voided_at&&Number(m.pending_selection_users)>0))return false;
     if(attention==='postponed'&&(m.status!=='postponed'||m.predictions_voided_at))return false;
     return true;
   }).sort((a,b)=>{
@@ -239,11 +240,11 @@ window.locateMatch=id=>{
 };
 function renderMatches(rows){
   adminMatches=rows;
-  const counts={all:rows.length,conflicts:currentConflictIds.size,maps:rows.filter(needsMaps).length,postponed:rows.filter(m=>m.status==='postponed'&&!m.predictions_voided_at).length};
-  const labels={all:'全部比赛',conflicts:'最近同步冲突',maps:'地图数待确认',postponed:'延期保留下注'};
+  const counts={selection:rows.filter(m=>m.status==='settled'&&!m.selected_maps&&!m.predictions_voided_at&&Number(m.pending_selection_users)>0).length,all:rows.length,conflicts:currentConflictIds.size,maps:rows.filter(needsMaps).length,postponed:rows.filter(m=>m.status==='postponed'&&!m.predictions_voided_at).length};
+  const labels={selection:'地图名单待结算',all:'全部比赛',conflicts:'最近同步冲突',maps:'旧地图数待确认',postponed:'延期保留下注'};
   $('matchAttention').innerHTML=Object.keys(labels).map(key=>`<button type="button" class="match-filter ${attentionFilter===key?'active':''}" data-attention="${key}" aria-pressed="${attentionFilter===key}">${labels[key]} ${counts[key]}</button>`).join('');
   const pendingMaps=rows.filter(m=>needsMaps(m)&&Number(m.pending_map_users)>0);
-  $('attentionNote').textContent=attentionFilter==='maps'
+  $('attentionNote').textContent=attentionFilter==='selection'?'此列表仅显示已有地图选择预测、比赛已结束但完整选图名单尚未确认的比赛。核实包含未打决胜图的完整名单后，在“地图选择”中录入来源并结算。':attentionFilter==='maps'
     ? `其中 ${pendingMaps.length} 场有未结算地图预测，本金合计 ${pendingMaps.reduce((sum,m)=>sum+Number(m.pending_map_points||0),0)} 积分。优先显示有预测的比赛，再按冻结本金从高到低、等待时间从早到晚排列。无预测的比赛保留在后面；地图数须核实后录入。`
     : '冲突取自最近一次同步报告，历史警告不代表当前仍有冲突。地图数待确认仅包含已结算的 BO3/BO5，需核实后录入。';
   $('matchAttention').querySelectorAll('button').forEach(b=>b.onclick=()=>{resetMatchFilters();attentionFilter=b.dataset.attention;renderMatches(adminMatches)});
@@ -256,7 +257,7 @@ function renderMatches(rows){
   $('matchPrev').onclick=()=>{matchPage--;renderMatches(adminMatches)};$('matchNext').onclick=()=>{matchPage++;renderMatches(adminMatches)};
   $('matchesBody').innerHTML=filtered.slice((matchPage-1)*matchPageSize,matchPage*matchPageSize).map(m=>`<tr>
     <td>${m.id}${m.external_id?`<small style="display:block">PandaScore ${esc(m.external_id)}</small>`:''}</td><td>${esc(m.event_name)}</td>
-    <td><strong>${esc(m.team_a)}</strong> vs <strong>${esc(m.team_b)}</strong>${needsMaps(m)?`<small style="display:block;margin-top:6px">${Number(m.pending_map_users)>0?`地图预测待结算：${Number(m.pending_map_users)} 人 · 冻结本金 ${Number(m.pending_map_points||0)} 积分`:'无未结算地图预测'}</small>`:''}</td>
+    <td><strong>${esc(m.team_a)}</strong> vs <strong>${esc(m.team_b)}</strong>${needsMaps(m)?`<small style="display:block;margin-top:6px">${Number(m.pending_map_users)>0?`旧地图数预测待结算：${Number(m.pending_map_users)} 人 · 冻结本金 ${Number(m.pending_map_points||0)} 积分`:'无未结算旧地图数预测'}</small>`:''}</td>
     <td>${new Date(m.starts_at).toLocaleString('zh-CN')}</td>
     <td>${esc(({open:'未开始',running:'进行中',settled:'已结算',canceled:'已取消',postponed:'已延期'})[m.status]||m.status)}${m.winner?` · ${esc(m.winner)}`:''}${m.predictions_voided_at?' · 已退本金':''}</td>
     <td><span class="source-badge">${esc(m.source||'manual')}</span></td>
@@ -282,6 +283,8 @@ function renderMatches(rows){
     `:m.status!=='canceled'?`<button class="mini-btn" onclick="changeLifecycle(${m.id},'postpone')">延期保留下注</button>`:''}
   `:''}
   <button class="mini-btn" onclick="auditPredictions(${m.id})">核对预测</button>
+${[1,3,5].includes(Number(m.number_of_games))?`<button class="mini-btn" onclick="manageMapSelection(${m.id})">地图选择${Number(m.pending_selection_users)>0?' · 待结算 '+Number(m.pending_selection_users)+' 人':''}</button>`:''}
+
   ${[3,5].includes(Number(m.number_of_games))?`<button class="mini-btn" onclick="manageMaps(${m.id})">地图数${m.actual_map_count==null?' · 待确认':' · '+Number(m.actual_map_count)+' 张'}</button>`:''}
   ${m.source==='manual' && m.status!=='settled'
     ? `<button class="mini-btn" onclick="deleteManualMatch(${m.id})">删除</button>`
@@ -327,16 +330,66 @@ window.auditPredictions=async function(id){
     const dialog=document.createElement('dialog');dialog.id='predictionAuditDialog';
     dialog.setAttribute('aria-label','比赛预测核对');
     dialog.style.cssText='width:min(850px,90vw);max-height:85vh;overflow:auto;background:#152033;color:#fff;padding:24px;border-radius:12px';
-    dialog.innerHTML=`<h2>比赛 ${Number(id)} · 预测核对</h2><p>只读记录；本金为 0 的旧版预测撤销时按原积分变化反向恢复。余额为查询时快照。</p><table><thead><tr><th>用户</th><th>类型／选择</th><th>结果</th><th>本金</th><th>原积分变化</th><th>可用／冻结</th></tr></thead><tbody>${data.predictions.map(p=>`<tr><td>${esc(p.username)}（${Number(p.user_id)}）</td><td>${p.market==='winner'?'胜负':'地图数'} · ${esc(p.selection)}</td><td>${esc(p.result||'待结算')}</td><td>${Number(p.stake_points||0)}</td><td>${Number(p.points_delta||0)}</td><td>${Number(p.points)}／${Number(p.locked_points)}</td></tr>`).join('')||'<tr><td colspan="6">本场没有预测记录</td></tr>'}</tbody></table><button type="button">关闭</button>`;
+    dialog.innerHTML=`<h2>比赛 ${Number(id)} · 预测核对</h2><p>只读记录；本金为 0 的旧版预测撤销时按原积分变化反向恢复。余额为查询时快照。</p><table><thead><tr><th>用户</th><th>类型／选择</th><th>结果</th><th>本金</th><th>原积分变化</th><th>可用／冻结</th></tr></thead><tbody>${data.predictions.map(p=>`<tr><td>${esc(p.username)}（${Number(p.user_id)}）</td><td>${p.market==='winner'?'胜负':p.market==='selection'?'地图选择':'旧地图数'} · ${esc(p.selection)}</td><td>${esc(p.result||'待结算')}</td><td>${Number(p.stake_points||0)}</td><td>${Number(p.points_delta||0)}</td><td>${Number(p.points)}／${Number(p.locked_points)}</td></tr>`).join('')||'<tr><td colspan="6">本场没有预测记录</td></tr>'}</tbody></table><button type="button">关闭</button>`;
     document.body.appendChild(dialog);dialog.showModal();dialog.querySelector('button').onclick=()=>dialog.remove();
   }catch(e){toast(e.message)}
 };
+const selectionMaps=['Ancient','Anubis','Cache','Cobblestone','Dust2','Inferno','Mirage','Nuke','Overpass','Train','Vertigo'];
+window.manageMapSelection=function(id){
+  const m=adminMatches.find(x=>Number(x.id)===Number(id));if(!m)return;
+  document.getElementById('mapSelectionDialog')?.remove();
+  const editable=m.status==='open'&&!m.winner&&!m.predictions_voided_at&&!m.map_selection_locked_at&&!m.selected_maps
+    &&Date.parse(m.starts_at)>Date.now()+600000&&(!m.map_selection_closes_at||Date.parse(m.map_selection_closes_at)>Date.now());
+  const d=document.createElement('dialog');d.id='mapSelectionDialog';d.setAttribute('aria-label','地图选择预测管理');
+  d.style.cssText='width:min(680px,90vw);max-height:85vh;overflow:auto;background:#152033;color:#fff;border:1px solid #53647b;border-radius:12px;padding:24px';
+  const defaultTime=m.map_selection_closes_at||new Date(Date.parse(m.starts_at)-3600000).toISOString();
+  const localTime=new Date(Date.parse(defaultTime)-new Date(defaultTime).getTimezoneOffset()*60000).toISOString().slice(0,16);
+  d.innerHTML=`<h2>地图选择预测 · BO${Number(m.number_of_games)}</h2><p>${esc(m.team_a)} vs ${esc(m.team_b)}</p>
+    <p>用户每场选一张，最终名单入选即赢，包括未打的决胜图。旧地图数记录按原规则单独结算。</p>
+    <p>待结算：${Number(m.pending_selection_users||0)} 人 · 冻结 ${Number(m.pending_selection_points||0)} 积分</p>
+    <form id="selectionConfig"><fieldset ${editable?'':'disabled'}><legend>赛事图池与赔率</legend>
+    <p>下面是地图名称目录，不代表本赛事图池。只为本赛事允许的地图填写赔率，留空关闭。请确保预测在选图信息公开前停止。</p>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${selectionMaps.map(n=>`<label>${n}<input aria-label="${n} 赔率" name="${n}" type="number" min="1" max="100" step="0.0001" style="width:100%;box-sizing:border-box" value="${m.map_selection_odds?.[n]==null?'':Number(m.map_selection_odds[n])}"></label>`).join('')}</div>
+    <label>停止预测时间（本地时间）<input id="selectionClosesAt" type="datetime-local" value="${localTime}" required></label>
+    <p>须早于开赛至少十分钟；如果选图更早公开，请提前设置或立即锁盘。到期后不可重新开放。</p>
+    <button type="submit" class="btn">保存图池、赔率与时间</button></fieldset></form>
+    ${!m.predictions_voided_at&&!m.map_selection_locked_at?'<button id="lockSelection" class="btn btn-secondary">立即锁盘（不可重开）</button>':''}
+    <hr><p>最终入选名单：${m.selected_maps?esc(m.selected_maps.join('、')):'待确认'}</p>
+    ${m.selected_maps_source?`<p>核查来源：${esc(m.selected_maps_source)}</p>`:''}
+    ${m.status==='settled'&&m.winner&&!m.predictions_voided_at&&!m.selected_maps?`<form id="selectionResult">
+      <p>核实完整 ${Number(m.number_of_games)} 张选图名单，包括未打的决胜图。不能只录入实际打过的地图；弃赛、图池或赛制变更导致名单不完整时保持待核查。</p>
+      <div style="display:flex;flex-wrap:wrap;gap:14px">${selectionMaps.map(n=>`<label><input type="checkbox" name="selectedMap" value="${n}">${n}</label>`).join('')}</div>
+      <label>完整名单来源网址<input id="selectionSource" type="url" placeholder="https://…" required style="width:100%"></label>
+      <button type="submit" class="btn">核实名单并结算积分</button></form>`:''}
+    ${m.selected_maps&&!m.predictions_voided_at?'<button id="undoSelection" class="btn btn-secondary">撤销地图选择结算</button>':''}
+    <p id="selectionMessage" role="status"></p><button id="closeSelection" class="btn btn-secondary">关闭</button>`;
+  document.body.appendChild(d);d.showModal();
+  $('closeSelection').onclick=()=>d.remove();
+  const perform=async(action,body)=>{
+    const controls=[...d.querySelectorAll('button')],old=controls.map(b=>b.disabled);controls.forEach(b=>b.disabled=true);
+    try{const r=await api(`/admin/matches/${id}/${action}`,{method:'POST',body:JSON.stringify(body||{})});await refreshAll();d.remove();toast(r.message)}
+    catch(e){$('selectionMessage').textContent=e.message;controls.forEach((b,i)=>b.disabled=old[i])}
+  };
+  $('selectionConfig').onsubmit=e=>{e.preventDefault();const t=new Date($('selectionClosesAt').value);
+    if(!Number.isFinite(t.getTime()))return $('selectionMessage').textContent='请填写锁盘时间';
+    const odds=Object.fromEntries(selectionMaps.map(n=>[n,d.querySelector(`[name="${n}"]`).value||null]));
+    perform('map-selection-config',{odds,closesAt:t.toISOString()});
+  };
+  if($('lockSelection'))$('lockSelection').onclick=()=>{if(confirm('立即停止本场地图选择预测？锁盘后不可重开，已有预测保留。'))perform('map-selection-lock')};
+  if($('selectionResult'))$('selectionResult').onsubmit=e=>{e.preventDefault();
+    const maps=[...d.querySelectorAll('[name="selectedMap"]:checked')].map(x=>x.value),source=$('selectionSource').value.trim();
+    if(maps.length!==Number(m.number_of_games))return $('selectionMessage').textContent=`请核实并勾选完整 ${Number(m.number_of_games)} 张地图，包括未打决胜图`;
+    if(confirm(`已核实最终名单：${maps.join('、')}？\n包括未打的决胜图，确认后将按“入选即赢”结算积分。`))perform('map-selection-result',{maps,source});
+  };
+  if($('undoSelection'))$('undoSelection').onclick=()=>{if(confirm('撤销地图选择结算并收回已返还积分？原本金恢复冻结，盘口保持关闭。'))perform('map-selection-undo')};
+};
+
 window.manageMaps=function(id){
   const m=adminMatches.find(x=>Number(x.id)===Number(id));
   if(!m)return;
   document.getElementById('mapMarketDialog')?.remove();
   const options=Number(m.number_of_games)===3?[2,3]:[3,4,5];
-  const editable=m.status==='open'&&!m.winner&&new Date(m.starts_at).getTime()>Date.now()+600000;
+  const editable=false; // Legacy market is read-only except settlement and undo.
   const dialog=document.createElement('dialog');
   dialog.id='mapMarketDialog';
   dialog.setAttribute('aria-label','总地图数管理');
@@ -344,7 +397,7 @@ window.manageMaps=function(id){
   dialog.innerHTML=`<form id="mapMarketForm">
     <h2>总地图数 · BO${Number(m.number_of_games)}</h2>
     <p>${esc(m.team_a)} vs ${esc(m.team_b)}</p>
-    <p>已有下注保留原赔率；留空可关闭对应选项。</p>
+    <p>旧地图数预测已停止新增；仅保留历史记录结算。</p>
     ${options.map(n=>`<label style="display:block;margin:12px 0">${n} 张赔率
       <input name="odds${n}" type="number" min="1" max="100" step="0.0001"
         value="${m['map_odds_'+n]==null?'':Number(m['map_odds_'+n])}" ${editable?'':'disabled'}>

@@ -25,7 +25,8 @@ function fixture({matches=[{id:1,external_id:'101',source:'pandascore',status:'r
     if(q.startsWith('SELECT id,external_id,status,score_a'))return rows(state.matches.filter(m=>m.status!=='settled'||m.score_a==null||m.score_b==null||(m.score_a===0&&m.score_b===0)));
     if(q.startsWith('SELECT id,status FROM matches'))return rows(state.matches.filter(m=>m.external_id===params[0]));
     if(q.startsWith('SELECT * FROM predictions'))return rows(state.predictions.filter(p=>p.match_id===params[0]&&p.result==null));
-    if(q.startsWith('SELECT * FROM map_predictions'))return rows([]);
+    if(q.startsWith('SELECT * FROM map_selection_predictions'))return rows([]);
+      if(q.startsWith('SELECT * FROM map_predictions'))return rows([]);
     if(q.startsWith('UPDATE matches SET status=$1')){
       Object.assign(state.matches.find(m=>m.id===params[1]),{status:params[0],source_status:params[0],predictions_voided_at:'now',void_reason:params[0]});return rows([]);
     }

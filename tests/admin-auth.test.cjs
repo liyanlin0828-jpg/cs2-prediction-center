@@ -50,7 +50,7 @@ test('missing, blank and known default secrets fail startup; private value start
   assert.equal(fixture().started,true);
 });
 test('all admin routes reject missing/invalid tokens and current ordinary users',async()=>{
-  const f=fixture();assert.equal(f.adminRoutes.length,24);
+  const f=fixture();assert.equal(f.adminRoutes.length,30);
   for(const route of f.adminRoutes){
     assert.equal(route.handlers[0].name,'auth');assert.equal(route.handlers[1].name,'admin');
     for(const [token,status] of [[null,401],['invalid',401],['player',403]]){

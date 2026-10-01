@@ -13,6 +13,7 @@ function fixture(){
       if(q==='ROLLBACK'){state=before;active=false;return rows([])}
       if(q.startsWith('SELECT * FROM matches'))return rows(state.match?[state.match]:[]);
       if(q.startsWith('SELECT * FROM predictions'))return rows(state.predictions);
+      if(q.startsWith('SELECT * FROM map_selection_predictions'))return rows([]);
       if(q.startsWith('SELECT * FROM map_predictions'))return rows(state.map_predictions);
       if(q.startsWith('UPDATE users')){
         if(++updates===failAt)throw Error('write failed');

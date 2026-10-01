@@ -24,6 +24,7 @@ const lifecycle=require('../lib/match-lifecycle');
    INSERT INTO users VALUES(1,850,150),(2,990,10);
    INSERT INTO predictions(id,match_id,user_id,stake_points) VALUES(1,1,1,100),(2,2,2,10),(3,3,1,20);
    INSERT INTO map_predictions(id,match_id,user_id,stake_points) VALUES(1,1,1,50);`);
+  await db.exec(fs.readFileSync(path.join(__dirname,'../db/migration_v25.sql'),'utf8'));
   const refund=await lifecycle.refund(pool,1,'canceled',{id:101,status:'canceled'});
   assert.equal(refund.refundedPoints,150);
   assert.deepEqual(await row('SELECT points,locked_points FROM users WHERE id=1'),{points:1000,locked_points:0});

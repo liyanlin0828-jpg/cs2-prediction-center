@@ -387,7 +387,7 @@ const matchStatus=m.user_prediction
 
 <span>${
   m.user_prediction
-    ? (state.lang==='zh'?'已预测：':'Predicted: ') + escapeHtml(m.user_prediction)
+    ? (state.lang==='zh'?'最近下注：':'Predicted: ') + escapeHtml(m.user_prediction)
     : locked
       ? (state.lang==='zh'?'🔒 已锁盘':'🔒 Locked')
       : (state.lang==='zh'?'尚未预测':'Not Predicted')
@@ -470,7 +470,7 @@ ${
 ${!locked && m.status!=='settled' && !m.winner ? `
   <section class="winner-entry" aria-label="胜负预测">
     <h3>胜负预测</h3>
-    <p class="prediction-entry-hint">${state.lang==='zh'?'先输入积分，再点击下方战队选择胜方。仅使用娱乐积分。':'Enter your points, then select a team below. Entertainment points only.'}</p>
+    <p class="prediction-entry-hint">${state.lang==='zh'?'先输入积分，再点击战队选择胜方。每次确认新增一笔下注，已有下注不可修改；明细见个人记录。仅使用娱乐积分。':'Enter your points, then select a team below. Entertainment points only.'}</p>
     <div class="winner-balance">
       可用积分：<strong>${Number(state.me?.points||0)}</strong>
     </div>
@@ -586,7 +586,7 @@ ${renderMapSelection(m)}${renderMapMarket(m,mapPrediction)}
     (m.status==='settled' || m.winner)
       ? (state.lang==='zh'?'已结算':'Settled')
       : m.user_prediction
-        ? (state.lang==='zh'?'当前预测：':'Predicted: ') + escapeHtml(m.user_prediction)
+        ? (state.lang==='zh'?'最近一笔预测：':'Predicted: ') + escapeHtml(m.user_prediction)
         : (locked
           ? (state.lang==='zh'?'🔒 已锁盘':'🔒 Locked')
           : (state.lang==='zh'?'尚未预测':'Not Predicted')
@@ -671,10 +671,15 @@ $('backToMatchesBtn').onclick=()=>{
   $('matches').classList.remove('hidden');
   $('matches').scrollIntoView({behavior:'smooth',block:'start'});
 };
+const winnerRequests=new Map();
+let winnerSubmitting=false;
 async function predict(matchId,team){
+  if(winnerSubmitting)return;
   if(!state.me){openAuth('login');toast('请先登录');return}
   const match=state.matches.find(m=>Number(m.id)===Number(matchId));
 const currentPrediction=match?.user_prediction||null;
+  const expectedOdds=Number(team===match?.team_a?match.odds_a:match?.odds_b);
+  if(!Number.isFinite(expectedOdds)){toast('赔率不可用，请刷新');return}
   let stakePoints=Number($('stakePointsInput')?.value);
 
 if(!Number.isInteger(stakePoints) || stakePoints<=0){
@@ -690,10 +695,14 @@ if(!Number.isInteger(stakePoints) || stakePoints<=0){
 }
 
 const confirmText=currentPrediction
-  ? `确认修改预测为 ${team}，下注 ${stakePoints} 积分吗？`
-  : `确认预测 ${team}，下注 ${stakePoints} 积分吗？`;
+  ? `确认新增一笔 ${team} 预测，下注 ${stakePoints} 积分，锁定赔率 ${expectedOdds}？已有下注不会修改或退还。`
+  : `确认预测 ${team}，下注 ${stakePoints} 积分，锁定赔率 ${expectedOdds}？`;
 
 if(!window.confirm(confirmText))return;
+  winnerSubmitting=true;
+  const intent=JSON.stringify([state.me.id,matchId,team,stakePoints,expectedOdds]);
+  const requestId=winnerRequests.get(intent)||crypto.randomUUID();
+  winnerRequests.set(intent,requestId);
   try{
     
 const data=await api('/predictions',{
@@ -701,14 +710,18 @@ const data=await api('/predictions',{
   body:JSON.stringify({
   matchId,
   team,
-  stakePoints
+  stakePoints,
+  expectedOdds,
+  requestId
 })
 });
 
+winnerRequests.delete(intent);
 state.me=data.user;
 toast(data.message||'预测成功');
 await loadAll();
-  }catch(e){toast(e.message)}
+  }catch(e){toast(e.message);await loadAll().catch(()=>{})}
+  finally{winnerSubmitting=false}
 }
 window.predict=predict;
 function renderLeaderboard(){

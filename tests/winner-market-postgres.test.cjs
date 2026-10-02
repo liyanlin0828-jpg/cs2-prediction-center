@@ -1,11 +1,17 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),vm=require('vm');
-const {PGlite}=require(process.env.PGLITE_TEST_MODULE);
 const market=require('../lib/winner-market'),lifecycle=require('../lib/match-lifecycle');
 (async()=>{
- const db=new PGlite();let tail=Promise.resolve();
+ let db,realPool;
+ if(process.env.CI_WINNER_DATABASE_URL){
+   const url=new URL(process.env.CI_WINNER_DATABASE_URL);
+   if(process.env.CI!=='true'||!['localhost','127.0.0.1'].includes(url.hostname)||url.pathname!=='/winner_ci')throw Error('Only isolated localhost CI database winner_ci is allowed');
+   const {Pool}=require('pg');realPool=new Pool({connectionString:url.href,max:8});
+   db={query:(...a)=>realPool.query(...a),exec:s=>realPool.query(s),close:()=>realPool.end()};
+ }else{const {PGlite}=require(process.env.PGLITE_TEST_MODULE);db=new PGlite()}
+ let tail=Promise.resolve();
  const query=async(...args)=>{if(process.env.TRACE_TEST)console.log(args[0].slice(0,80));const r=await db.query(...args);return {...r,rowCount:r.affectedRows??r.rows.length}};
- const pool={connect:async()=>{const prev=tail;let release;tail=new Promise(r=>release=r);await prev;return {query,release}}};
+ const pool=realPool||{connect:async()=>{const prev=tail;let release;tail=new Promise(r=>release=r);await prev;return {query,release}}};
  const row=async(sql)=>(await query(sql)).rows[0];
  const input={matchId:1,team:'Alpha',stakePoints:100,expectedOdds:1.8,requestId:'request_0000000001'};
  try{
@@ -40,7 +46,7 @@ const market=require('../lib/winner-market'),lifecycle=require('../lib/match-lif
  await db.exec("INSERT INTO matches(id,event_name,team_a,team_b,starts_at) VALUES(2,'test','Alpha','Beta',NOW()+INTERVAL '3 hours')");
  await market.place(pool,1,{...input,matchId:2,requestId:'request_0000000004'});
  const beforeFailure=await row('SELECT points,locked_points FROM users');
- const failingPool={connect:async()=>{const c=await pool.connect();return {...c,query:async(sql,p)=>{if(sql.startsWith('INSERT INTO predictions'))throw new Error('injected insert failure');return c.query(sql,p)}}}};
+ const failingPool={connect:async()=>{const c=await pool.connect();return {release:()=>c.release(),query:async(sql,p)=>{if(sql.startsWith('INSERT INTO predictions'))throw new Error('injected insert failure');return c.query(sql,p)}}}};
  await assert.rejects(market.place(failingPool,1,{...input,matchId:2,requestId:'request_failure_01'}),/injected/);
  assert.deepEqual(await row('SELECT points,locked_points FROM users'),beforeFailure);
  await db.exec('UPDATE matches SET odds_a=2 WHERE id=2');

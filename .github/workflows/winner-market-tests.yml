@@ -1,0 +1,35 @@
+name: Winner market safety
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  winner-market:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: winner_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts
+      - run: node --check server.js && node --check public/js/app.js && node --check lib/winner-market.js
+      - run: node --test tests/winner-client.test.cjs tests/pandascore-sync.test.cjs tests/match-lifecycle.test.cjs tests/admin-auth.test.cjs
+      - run: node tests/winner-market-postgres.test.cjs
+        env:
+          CI_WINNER_DATABASE_URL: postgres://postgres:ci-only-password@127.0.0.1:5432/winner_ci

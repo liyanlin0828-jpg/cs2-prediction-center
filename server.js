@@ -1,3 +1,4 @@
+const winnerMarket=require('./lib/winner-market');
 require('dotenv').config();
 const express=require('express');
 const path=require('path');
@@ -167,7 +168,7 @@ async function settleMatch(matchId,winner,sourceMatch=null,transactionPool=pool)
     }
     if(winner!==m.team_a&&winner!==m.team_b)throw Object.assign(new Error('获胜队伍无效'),{status:400});
     const preds=(await client.query(
-  'SELECT * FROM predictions WHERE match_id=$1 AND result IS NULL FOR UPDATE',
+  'SELECT * FROM predictions WHERE match_id=$1 AND result IS NULL ORDER BY user_id,id FOR UPDATE',
   [m.id]
 )).rows;
     for(const p of preds){
@@ -548,9 +549,9 @@ app.get('/api/matches',async(req,res)=>{
   const h=req.headers.authorization||'';
   if(h.startsWith('Bearer ')){try{userId=jwt.verify(h.slice(7),JWT_SECRET).id}catch{}}
   const r=await pool.query(`SELECT m.*,${matchPriority.scoreSql()} AS popularity_score,
-    (SELECT p.predicted_team FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_prediction,
-    (SELECT p.result FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_result,
-    (SELECT p.points_delta FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1) AS user_points_delta
+    (SELECT p.predicted_team FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1 ORDER BY p.created_at DESC,p.id DESC LIMIT 1) AS user_prediction,
+    (SELECT p.result FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1 ORDER BY p.created_at DESC,p.id DESC LIMIT 1) AS user_result,
+    (SELECT p.points_delta FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1 ORDER BY p.created_at DESC,p.id DESC LIMIT 1) AS user_points_delta
     FROM matches m
 WHERE m.predictions_voided_at IS NULL AND m.winner IS NULL
   AND ((m.status='open' AND m.starts_at>NOW()) OR m.status IN ('running','postponed'))
@@ -605,157 +606,8 @@ app.get('/api/leaderboard',async(req,res)=>{
   res.json({users:r.rows});
 });
 app.post('/api/predictions',auth,async(req,res)=>{
-  const {matchId,team,stakePoints}=req.body||{};
-  const stake=Number(stakePoints);
-  const client=await pool.connect();
-
-  try{
-    await client.query('BEGIN');
-
-    const m=(await client.query(
-      "SELECT * FROM matches WHERE id=$1 AND status='open' AND winner IS NULL AND predictions_voided_at IS NULL AND starts_at>NOW()+INTERVAL '10 minutes' FOR UPDATE",
-      [matchId]
-    )).rows[0];
-
-    if(!m){
-      throw Object.assign(
-        new Error('竞猜已锁定：比赛开始前10分钟停止预测'),
-        {status:400}
-      );
-    }
-
-    if(team!==m.team_a && team!==m.team_b){
-      throw Object.assign(
-        new Error('无效的预测队伍'),
-        {status:400}
-      );
-    }
-
-    if(!Number.isInteger(stake) || stake<=0){
-      throw Object.assign(
-        new Error('下注积分必须是大于0的整数'),
-        {status:400}
-      );
-    }
-
-    const currentOdds=
-      team===m.team_a
-        ? Number(m.odds_a)
-        : Number(m.odds_b);
-
-    if(!Number.isFinite(currentOdds) || currentOdds<=0){
-      throw Object.assign(
-        new Error('当前赔率无效，暂时无法下注'),
-        {status:400}
-      );
-    }
-
-    const user=(await client.query(
-      'SELECT id,username,role,points,locked_points FROM users WHERE id=$1 FOR UPDATE',
-      [req.user.id]
-    )).rows[0];
-
-    if(!user){
-      throw Object.assign(
-        new Error('用户不存在'),
-        {status:404}
-      );
-    }
-
-    const existing=(await client.query(
-      `SELECT id,predicted_team,result,stake_points,odds_at_prediction
-       FROM predictions
-       WHERE user_id=$1 AND match_id=$2
-       FOR UPDATE`,
-      [req.user.id,matchId]
-    )).rows[0];
-
-    if(existing?.result){
-      throw Object.assign(
-        new Error('该预测已经结算，不能修改'),
-        {status:409}
-      );
-    }
-
-    const oldStake=Number(existing?.stake_points||0);
-    const stakeDiff=stake-oldStake;
-
-    if(stakeDiff>0 && Number(user.points)<stakeDiff){
-      throw Object.assign(
-        new Error(`积分不足，当前可用积分：${user.points}`),
-        {status:400}
-      );
-    }
-
-    if(stakeDiff!==0){
-      await client.query(
-        `UPDATE users
-         SET
-           points=points-$1,
-           locked_points=locked_points+$1
-         WHERE id=$2`,
-        [stakeDiff,req.user.id]
-      );
-    }
-
-    let responseStatus=201;
-    let responseMessage='';
-
-    if(existing){
-      await client.query(
-        `UPDATE predictions
-         SET predicted_team=$1,
-             stake_points=$2,
-             odds_at_prediction=$3
-         WHERE id=$4`,
-        [team,stake,currentOdds,existing.id]
-      );
-
-      responseStatus=200;
-      responseMessage=`预测已修改：${team}，下注 ${stake} 积分，锁定赔率 ${currentOdds}`;
-    }else{
-      await client.query(
-        `INSERT INTO predictions(
-           user_id,
-           match_id,
-           predicted_team,
-           stake_points,
-           odds_at_prediction
-         )
-         VALUES($1,$2,$3,$4,$5)`,
-        [req.user.id,matchId,team,stake,currentOdds]
-      );
-
-      responseMessage=`预测成功：${team}，下注 ${stake} 积分，锁定赔率 ${currentOdds}`;
-    }
-
-    const updatedUser=(await client.query(
-      `SELECT id,username,role,points,locked_points
-       FROM users
-       WHERE id=$1`,
-      [req.user.id]
-    )).rows[0];
-
-    await client.query('COMMIT');
-
-    res.status(responseStatus).json({
-      ok:true,
-      user:updatedUser,
-      predicted_team:team,
-      stake_points:stake,
-      odds_at_prediction:currentOdds,
-      message:responseMessage
-    });
-
-  }catch(e){
-    await client.query('ROLLBACK');
-
-    res.status(e.status||500).json({
-      message:e.status ? e.message : '预测失败'
-    });
-  }finally{
-    client.release();
-  }
+  try{res.json(await winnerMarket.place(pool,req.user.id,req.body||{},false))}
+  catch(e){res.status(e.status||500).json({message:e.status?e.message:'预测失败'})}
 });
 app.post('/api/map-predictions',auth,async(req,res)=>{
   res.status(410).json({message:'地图数预测已停止新增；旧记录继续按原规则结算。请使用地图选择预测。'});
@@ -1162,7 +1014,7 @@ app.post('/api/admin/matches/:id/unsettle',auth,admin,async(req,res)=>{
        FROM predictions
        WHERE match_id=$1
          AND result IN ('win','loss')
-       FOR UPDATE`,
+       ORDER BY user_id,id FOR UPDATE`,
       [m.id]
     )).rows;
 

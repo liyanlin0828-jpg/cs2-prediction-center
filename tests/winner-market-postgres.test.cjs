@@ -39,6 +39,10 @@ const market=require('../lib/winner-market'),lifecycle=require('../lib/match-lif
  vm.runInContext(source.slice(source.indexOf("app.get('/api/admin/matches/:id/prediction-audit'"),source.indexOf("app.delete('/api/admin/matches/:id'")),context);
  await db.exec("INSERT INTO matches(id,event_name,team_a,team_b,starts_at) VALUES(2,'test','Alpha','Beta',NOW()+INTERVAL '3 hours')");
  await market.place(pool,1,{...input,matchId:2,requestId:'request_0000000004'});
+ const beforeFailure=await row('SELECT points,locked_points FROM users');
+ const failingPool={connect:async()=>{const c=await pool.connect();return {...c,query:async(sql,p)=>{if(sql.startsWith('INSERT INTO predictions'))throw new Error('injected insert failure');return c.query(sql,p)}}}};
+ await assert.rejects(market.place(failingPool,1,{...input,matchId:2,requestId:'request_failure_01'}),/injected/);
+ assert.deepEqual(await row('SELECT points,locked_points FROM users'),beforeFailure);
  await db.exec('UPDATE matches SET odds_a=2 WHERE id=2');
  await market.place(pool,1,{...input,matchId:2,expectedOdds:2,requestId:'request_0000000005'});
  await context.settleMatch(2,'Alpha');await context.settleMatch(2,'Alpha');

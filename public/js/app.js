@@ -6,7 +6,7 @@ const api=async(path,options={})=>{
   if(state.token)headers.Authorization=`Bearer ${state.token}`;
   const res=await fetch(`/api${path}`,{...options,headers});
   const data=await res.json().catch(()=>({}));
-  if(!res.ok)throw new Error(data.message||'请求失败');
+  if(!res.ok)throw Object.assign(new Error(data.message||'请求失败'),{status:res.status});
   return data;
 };
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800)}
@@ -671,11 +671,19 @@ $('backToMatchesBtn').onclick=()=>{
   $('matches').classList.remove('hidden');
   $('matches').scrollIntoView({behavior:'smooth',block:'start'});
 };
-const winnerRequests=new Map();
 let winnerSubmitting=false;
 async function predict(matchId,team){
   if(winnerSubmitting)return;
   if(!state.me){openAuth('login');toast('请先登录');return}
+  const pendingKey='cs2_winner_pending_'+state.me.id;
+  let pending;
+  try{pending=JSON.parse(sessionStorage.getItem(pendingKey)||'null')}
+  catch{toast('无法读取待确认下注，请先核对个人记录');return}
+  if(pending){
+    if(!window.confirm(`上一笔 ${pending.team}、${pending.stakePoints} 积分（赔率 ${pending.expectedOdds}）的结果尚未确认。先查询并重试原请求？本次不会新增另一笔下注。`))return;
+    return submitWinner(pending,pendingKey);
+  }
+  if(matchId===null){toast('没有待确认的下注');return}
   const match=state.matches.find(m=>Number(m.id)===Number(matchId));
 const currentPrediction=match?.user_prediction||null;
   const expectedOdds=Number(team===match?.team_a?match.odds_a:match?.odds_b);
@@ -699,31 +707,32 @@ const confirmText=currentPrediction
   : `确认预测 ${team}，下注 ${stakePoints} 积分，锁定赔率 ${expectedOdds}？`;
 
 if(!window.confirm(confirmText))return;
+  const request={matchId,team,stakePoints,expectedOdds,requestId:crypto.randomUUID()};
+  try{sessionStorage.setItem(pendingKey,JSON.stringify(request))}
+  catch{toast('无法保存下注请求，未提交。请允许浏览器会话存储后重试');return}
+  return submitWinner(request,pendingKey);
+}
+async function submitWinner(request,pendingKey){
   winnerSubmitting=true;
-  const intent=JSON.stringify([state.me.id,matchId,team,stakePoints,expectedOdds]);
-  const requestId=winnerRequests.get(intent)||crypto.randomUUID();
-  winnerRequests.set(intent,requestId);
   try{
-    
 const data=await api('/predictions',{
   method:'POST',
-  body:JSON.stringify({
-  matchId,
-  team,
-  stakePoints,
-  expectedOdds,
-  requestId
-})
+  body:JSON.stringify(request)
 });
-
-winnerRequests.delete(intent);
+sessionStorage.removeItem(pendingKey);
 state.me=data.user;
 toast(data.message||'预测成功');
 await loadAll();
-  }catch(e){toast(e.message);await loadAll().catch(()=>{})}
+  }catch(e){
+    // Only explicit transactional rejections prove no new ticket was accepted.
+    // A lost response/5xx keeps the original request across reloads and price changes.
+    if([400,404,409].includes(e.status))sessionStorage.removeItem(pendingKey);
+    toast(e.message);await loadAll().catch(()=>{});
+  }
   finally{winnerSubmitting=false}
 }
 window.predict=predict;
+window.retryWinner=()=>predict(null,null);
 function renderLeaderboard(){
   $('leaderboardBody').innerHTML=state.leaderboard.map((u,i)=>`
     <tr><td>${i+1}</td><td><strong>${escapeHtml(u.username)}</strong></td>
@@ -787,6 +796,7 @@ const pagedPredictions=sortedPredictions.slice(
 );
   $('profileHint').textContent=`${state.me.username} · ${state.me.points} 积分`;
   $('profileCard').innerHTML=`
+    <button type="button" class="btn btn-secondary" onclick="retryWinner()">核对待确认下注</button>
     <div class="profile-top"><div><h3>${escapeHtml(state.me.username)}</h3>
     <p>可用积分 ${state.me.points} · 冻结积分 ${Number(state.me.locked_points||0)} · ${calculatedWinRate}% 胜率</p></div>
     <div class="profile-badge">${state.me.role==='admin'?'管理员':'玩家'}</div></div>

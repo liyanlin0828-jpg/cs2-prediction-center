@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CS2 赛事预测中心</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,12 +13,13 @@
 <body class="home-page">
 <header class="topbar">
   <div class="brand"><span class="brand-mark">CS</span><span>CS2 预测中心</span></div>
-  <nav>
+  <nav class="home-nav" aria-label="主导航">
     <a href="#matches">赛事</a>
     <a href="#news" id="newsNav">新闻</a>
     <a href="/teams.html">战队资料</a>
     <a href="#leaderboard">排行榜</a>
-    <a href="#profile">个人中心</a><a id="adminLink" class="hidden" href="/admin.html">管理后台</a>
+    <a href="#profile">个人中心</a></nav>
+  <div class="header-actions"><a id="adminLink" class="hidden" href="/admin.html">管理后台</a>
     <button id="loginBtn" class="btn btn-primary">登录 / 注册</button>
 
 <button id="langToggle" class="btn btn-secondary" type="button">
@@ -28,7 +29,7 @@
 <button id="logoutBtn" class="btn btn-secondary" hidden>
   退出
 </button>
-  </nav>
+  </div>
 </header>
 
 <main class="container">
@@ -36,7 +37,7 @@
     <div>
       <span class="eyebrow">ONLINE PREDICTION PLATFORM</span>
       <h1>预测比赛，赢取积分</h1>
-      <p>真实账号、云端数据库、共享排行榜。当前版本为演示赛事数据，不涉及真钱投注。</p>
+      <p>关注赛程，预测胜负。仅限娱乐积分，不涉及真钱。</p>
     </div>
     <div class="hero-stat"><strong id="heroPoints">0</strong><span>我的积分</span></div>
   </section>

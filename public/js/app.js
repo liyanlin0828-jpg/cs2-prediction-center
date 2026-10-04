@@ -671,6 +671,10 @@ $('backToMatchesBtn').onclick=()=>{
   $('matches').classList.remove('hidden');
   $('matches').scrollIntoView({behavior:'smooth',block:'start'});
 };
+document.querySelector('.home-nav a[href="#matches"]')?.addEventListener('click',()=>{
+  $('matchDetail').classList.add('hidden');
+  $('matches').classList.remove('hidden');
+});
 let winnerSubmitting=false;
 async function predict(matchId,team){
   if(winnerSubmitting)return;
@@ -1036,8 +1040,8 @@ if(heroTitle)heroTitle.textContent=isZh?'预测比赛，赢取积分':'Predict M
 
 const heroText=document.querySelector('.hero p');
 if(heroText)heroText.textContent=isZh
-  ?'真实账号、云端数据库、共享排行榜。当前版本为演示赛事数据，不涉及真钱投注。'
-  :'Real accounts, cloud database, and shared leaderboard. This version uses demo match data and does not involve real-money betting.';
+  ?'关注赛程，预测胜负。仅限娱乐积分，不涉及真钱。'
+  :'Follow matches and predict the winner. Entertainment points only. No real-money betting.';
 
 const heroPointsLabel=document.querySelector('.hero-stat span');
 if(heroPointsLabel)heroPointsLabel.textContent=isZh?'我的积分':'My Points';

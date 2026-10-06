@@ -675,9 +675,33 @@ document.querySelector('.home-nav a[href="#matches"]')?.addEventListener('click'
   $('matchDetail').classList.add('hidden');
   $('matches').classList.remove('hidden');
 });
+function confirmWinnerTicket({team,expectedOdds,stake,balance,additional,matchName}){
+  return new Promise(resolve=>{
+    const previous=document.activeElement;
+    const dialog=document.createElement('dialog');
+    dialog.className='winner-confirm';
+    dialog.setAttribute('aria-labelledby','winnerConfirmTitle');
+    dialog.innerHTML='<form><h2 id="winnerConfirmTitle">确认胜负预测</h2><p class="ticket-match"></p><dl><div><dt>所选战队</dt><dd class="ticket-team"></dd></div><div><dt>本次锁定赔率</dt><dd class="ticket-odds"></dd></div></dl><label for="ticketStake">下注积分</label><input id="ticketStake" type="number" min="1" max="1000000" step="1" inputmode="numeric" required><p class="ticket-balance"></p><dl><div><dt>猜中返还（含本金）</dt><dd class="ticket-return" aria-live="polite"></dd></div></dl><p class="ticket-note"></p><p>仅使用娱乐积分。提交时若赔率变化，会拒绝本次下注，请重新确认。</p><p class="ticket-error" role="alert"></p><div class="ticket-actions"><button type="button" class="btn btn-secondary ticket-cancel">取消</button><button type="submit" class="btn btn-primary">确认下注</button></div></form>';
+    const q=selector=>dialog.querySelector(selector);
+    q('.ticket-match').textContent=matchName;
+    q('.ticket-team').textContent=team;
+    q('.ticket-odds').textContent=expectedOdds.toFixed(2);
+    q('.ticket-balance').textContent='可用积分：'+balance;
+    q('.ticket-note').textContent=additional?'本次将新增一笔下注，已有下注不会修改或退还。':'确认后将扣除本次下注积分，猜错不返还。';
+    const input=q('#ticketStake');input.value=Number.isInteger(stake)&&stake>0?stake:'';
+    const update=()=>{const n=Number(input.value);q('.ticket-return').textContent=Number.isInteger(n)&&n>0&&n<=1000000?Math.floor(n*expectedOdds)+' 积分':'—';q('.ticket-error').textContent=''};
+    input.addEventListener('input',update);update();
+    const finish=value=>{dialog.close();dialog.remove();if(previous?.isConnected)previous.focus();resolve(value)};
+    q('.ticket-cancel').addEventListener('click',()=>finish(null));
+    dialog.addEventListener('cancel',e=>{e.preventDefault();finish(null)});
+    q('form').addEventListener('submit',e=>{e.preventDefault();const n=Number(input.value);if(!Number.isInteger(n)||n<1||n>1000000||n>balance){q('.ticket-error').textContent='请输入不超过可用积分的正整数';input.focus();return}finish(n)});
+    document.body.append(dialog);dialog.showModal();input.focus();
+  });
+}
 let winnerSubmitting=false;
+let winnerConfirming=false;
 async function predict(matchId,team){
-  if(winnerSubmitting)return;
+  if(winnerSubmitting||winnerConfirming)return;
   if(!state.me){openAuth('login');toast('请先登录');return}
   const pendingKey='cs2_winner_pending_'+state.me.id;
   let pending;
@@ -692,25 +716,11 @@ async function predict(matchId,team){
 const currentPrediction=match?.user_prediction||null;
   const expectedOdds=Number(team===match?.team_a?match.odds_a:match?.odds_b);
   if(!Number.isFinite(expectedOdds)){toast('赔率不可用，请刷新');return}
-  let stakePoints=Number($('stakePointsInput')?.value);
-
-if(!Number.isInteger(stakePoints) || stakePoints<=0){
-  const entered=window.prompt('请输入下注积分：');
-  if(entered===null)return;
-
-  stakePoints=Number(entered);
-
-  if(!Number.isInteger(stakePoints) || stakePoints<=0){
-    toast('下注积分必须是大于0的整数');
-    return;
-  }
-}
-
-const confirmText=currentPrediction
-  ? `确认新增一笔 ${team} 预测，下注 ${stakePoints} 积分，锁定赔率 ${expectedOdds}？已有下注不会修改或退还。`
-  : `确认预测 ${team}，下注 ${stakePoints} 积分，锁定赔率 ${expectedOdds}？`;
-
-if(!window.confirm(confirmText))return;
+  winnerConfirming=true;
+  let stakePoints;
+  try{stakePoints=await confirmWinnerTicket({team,expectedOdds,stake:Number($('stakePointsInput')?.value),balance:Number(state.me.points),additional:!!currentPrediction,matchName:match.team_a+' vs '+match.team_b})}
+  finally{winnerConfirming=false}
+  if(stakePoints===null)return;
   const request={matchId,team,stakePoints,expectedOdds,requestId:crypto.randomUUID()};
   try{sessionStorage.setItem(pendingKey,JSON.stringify(request))}
   catch{toast('无法保存下注请求，未提交。请允许浏览器会话存储后重试');return}

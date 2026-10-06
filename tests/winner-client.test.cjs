@@ -4,7 +4,7 @@ const source=fs.readFileSync(require('path').join(__dirname,'../public/js/app.js
 const code=source.slice(source.indexOf('let winnerSubmitting=false;'),source.indexOf('window.predict=predict;'));
 function page(store,send){
  const confirmations=[];
- const c=vm.createContext({state:{me:{id:1},matches:[{id:1,team_a:'A',team_b:'B',odds_a:2,odds_b:3}]},$:()=>({value:'100'}),sessionStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},crypto:{randomUUID:()=>require('crypto').randomUUID()},window:{confirm:t=>{confirmations.push(t);return true}},toast(){},openAuth(){},loadAll:async()=>{},api:async(p,o)=>send(JSON.parse(o.body))});
+ const c=vm.createContext({confirmWinnerTicket:async()=>100,state:{me:{id:1,points:1000},matches:[{id:1,team_a:'A',team_b:'B',odds_a:2,odds_b:3}]},$:()=>({value:'100'}),sessionStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},crypto:{randomUUID:()=>require('crypto').randomUUID()},window:{confirm:t=>{confirmations.push(t);return true}},toast(){},openAuth(){},loadAll:async()=>{},api:async(p,o)=>send(JSON.parse(o.body))});
  vm.runInContext(code,c);return {c,confirmations};
 }
 test('lost response survives reload and odds changes without creating a second request',async()=>{
@@ -24,5 +24,11 @@ test('explicit price rejection clears pending request; storage failure sends not
 });
 test('double click while a request is pending sends only once',async()=>{
  const store=new Map();let finish,calls=0;const p=page(store,()=>{calls++;return new Promise(r=>finish=r)});
- const first=p.c.predict(1,'A');await p.c.predict(1,'A');assert.equal(calls,1);finish({user:{id:1}});await first;
+ const first=p.c.predict(1,'A');await Promise.resolve();await p.c.predict(1,'A');assert.equal(calls,1);finish({user:{id:1}});await first;
+});
+
+test('open confirmation blocks another ticket and cancellation sends nothing',async()=>{
+ const store=new Map();let calls=0,finish;const p=page(store,async()=>{calls++;return {user:{id:1}}});
+ p.c.confirmWinnerTicket=()=>new Promise(r=>finish=r);
+ const first=p.c.predict(1,'A');await p.c.predict(1,'B');assert.equal(calls,0);finish(null);await first;assert.equal(store.size,0);assert.equal(calls,0);
 });

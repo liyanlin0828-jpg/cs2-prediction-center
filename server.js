@@ -554,7 +554,7 @@ app.get('/api/matches',async(req,res)=>{
     (SELECT p.points_delta FROM predictions p WHERE p.match_id=m.id AND p.user_id=$1 ORDER BY p.created_at DESC,p.id DESC LIMIT 1) AS user_points_delta
     FROM matches m
 WHERE m.predictions_voided_at IS NULL AND m.winner IS NULL
-  AND ((m.status='open' AND m.starts_at>NOW()) OR m.status IN ('running','postponed'))
+  AND m.status IN ('open','running','postponed')
 ORDER BY ${matchPriority.orderSql(req.query?.sort)}
 LIMIT 100
 `,[userId]);

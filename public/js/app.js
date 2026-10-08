@@ -199,7 +199,7 @@ function isLiveMatch(m){
 }
 function isActiveMatch(m,now=Date.now()){
   if(m.winner||m.predictions_voided_at)return false;
-  return isLiveMatch(m)||m.status==='postponed'||(m.status==='open'&&Date.parse(m.starts_at)>now);
+  return isLiveMatch(m)||m.status==='postponed'||m.status==='open';
 }
 function matchesFilter(m,filter,now=Date.now()){
   if(filter==='finished')return m.status==='settled'&&!!m.winner;
@@ -218,7 +218,7 @@ function matchTimeLabel(m){
   if(m.status==='canceled')return state.lang==='zh'?'已取消':'Canceled';
   if(m.status==='settled'||m.winner)return state.lang==='zh'?'比赛已结束':'Finished';
   if(isLiveMatch(m))return state.lang==='zh'?'🔴 进行中':'🔴 Live';
-  if(Date.parse(m.starts_at)<=Date.now())return state.lang==='zh'?'等待开赛确认':'Awaiting start confirmation';
+  if(Date.parse(m.starts_at)<=Date.now())return state.lang==='zh'?'等待状态更新 · 已停止下注':'Awaiting status update · Closed';
   return countdown(m.starts_at);
 }
 function renderMatches(){
